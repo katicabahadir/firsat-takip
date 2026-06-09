@@ -338,4 +338,227 @@ HTML_TEMPLATE = """
             const encodedUri = encodeURI(csvIcerik);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link
+            link.setAttribute("download", "Firsat_Takip_Sistemi_Export.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function sayfaDegistir(sayfaId) {
+            document.querySelectorAll('.sayfa').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById(sayfaId).classList.add('active');
+            document.getElementById('btn-' + sayfaId).classList.add('active');
+            verileriTazele();
+        }
+
+        function paraFormat(deger) {
+            return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(deger);
+        }
+
+        function verileriTazele() {
+            setupDropdown('f-musteri', db.musteriler, 'Müşteri Seçin...', 'filtre-musteri', 'Tüm Müşteriler');
+            setupDropdown('f-urun', db.urunler, 'Ürün Seçin...', 'filtre-urun', 'Tüm Ürünler');
+            setupDropdown('f-statu', db.statuler, null, 'filtre-statu', 'Tüm Statüler');
+
+            renderAyarlarListesi('liste-musteriler', db.musteriler, 'musteriler');
+            renderAyarlarListesi('liste-urunler', db.urunler, 'urunler');
+            renderAyarlarListesi('liste-statuler', db.statuler, 'statuler');
+
+            const tbody = document.getElementById('firsat-tablo-vucut');
+            tbody.innerHTML = '';
+            
+            let acikToplam = 0, kazanilanToplam = 0, agirlikliTahmin = 0;
+            let grafikVerileri = {};
+            db.statuler.forEach(s => grafikVerileri[s.ad] = 0);
+
+            let pivotMatris = {};
+            db.urunler.forEach(u => {
+                pivotMatris[u.id] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, toplam: 0 };
+            });
+
+            const aramaMetni = document.getElementById('arama-firma').value.toLowerCase();
+            const fMusteri = document.getElementById('filtre-musteri').value;
+            const fUrun = document.getElementById('filtre-urun').value;
+            const fStatu = document.getElementById('filtre-statu').value;
+
+            db.firsatlar.forEach((f, index) => {
+                const musteriObj = db.musteriler.find(m => m.id == f.musteri_id);
+                const urunObj = db.urunler.find(u => u.id == f.urun_id);
+                const statuObj = db.statuler.find(s => s.id == f.statu_id);
+
+                const musteriAd = musteriObj?.ad || '-';
+                const urunAd = urunObj?.ad || '-';
+                const statuAd = statuObj?.ad || 'Açık';
+                
+                const gelir = parseFloat(f.beklenen_gelir) || 0;
+                const olasilik = parseFloat(f.olasilik) || 0;
+
+                if(statuAd === 'Kazanıldı') {
+                    kazanilanToplam += gelir;
+                } else if(statuAd !== 'Kaybedildi') {
+                    acikToplam += gelir;
+                    agirlikliTahmin += (gelir * (olasilik / 100));
+                }
+
+                if(grafikVerileri[statuAd] !== undefined) {
+                    grafikVerileri[statuAd] += gelir;
+                }
+
+                if(pivotMatris[f.urun_id] && pivotMatris[f.urun_id][f.statu_id] !== undefined) {
+                    pivotMatris[f.urun_id][f.statu_id] += gelir;
+                    pivotMatris[f.urun_id].toplam += gelir;
+                }
+
+                if (aramaMetni && !musteriAd.toLowerCase().includes(aramaMetni)) return;
+                if (fMusteri && f.musteri_id != fMusteri) return;
+                if (fUrun && f.urun_id != fUrun) return;
+                if (fStatu && f.statu_id != fStatu) return;
+
+                const tr = document.createElement('tr');
+                const t = f.tarih ? f.tarih.split('-').reverse().join('.') : '-';
+                
+                tr.innerHTML = `
+                    <td><strong>${musteriAd}</strong></td>
+                    <td>${urunAd}</td>
+                    <td>${paraFormat(gelir)}</td>
+                    <td>%${olasilik}</td>
+                    <td><span class="badge ${statuAd === 'Açık'?'acik':statuAd==='Kazanıldı'?'kazanildi':statuAd==='Kaybedildi'?'kaybedildi':statuAd==='Teklif Verildi'?'teklif':'ertelendi'}">${statuAd}</span></td>
+                    <td>${t}</td>
+                    <td><button type="button" class="btn-delete" onclick="firsatSil(${index})"><i class="fa-solid fa-trash-can"></i></button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('m-acik').innerText = paraFormat(acikToplam);
+            document.getElementById('m-kazanilan').innerText = paraFormat(kazanilanToplam);
+            document.getElementById('m-tahmin').innerText = paraFormat(agirlikliTahmin);
+
+            const yillikHedef = 5000000;
+            const kalanHedef = yillikHedef - kazanilanToplam;
+            const gerceklesmeOrani = ((kazanilanToplam / yillikHedef) * 100).toFixed(1);
+
+            document.getElementById('h-gerceklesen').innerText = paraFormat(kazanilanToplam);
+            document.getElementById('h-kalan').innerText = paraFormat(kalanHedef > 0 ? kalanHedef : 0);
+            document.getElementById('h-oran').innerText = `%${gerceklesmeOrani}`;
+            document.getElementById('h-progress').style.width = `${gerceklesmeOrani > 100 ? 100 : gerceklesmeOrani}%`;
+
+            grafikGuncelle(grafikVerileri);
+            pivotTabloInsaEt(pivotMatris);
+        }
+
+        function pivotTabloInsaEt(matris) {
+            const pBody = document.getElementById('pivot-tablo-vucut');
+            pBody.innerHTML = '';
+            let sutunToplamlari = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, genel: 0 };
+
+            db.urunler.forEach(u => {
+                const data = matris[u.id];
+                if(!data) return;
+
+                sutunToplamlari[1] += data[1]; sutunToplamlari[2] += data[2];
+                sutunToplamlari[3] += data[3]; sutunToplamlari[4] += data[4];
+                sutunToplamlari[5] += data[5]; sutunToplamlari.genel += data.toplam;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="pivot-baslik">${u.ad}</td>
+                    <td>${data[1] > 0 ? paraFormat(data[1]) : '-'}</td>
+                    <td>${data[2] > 0 ? paraFormat(data[2]) : '-'}</td>
+                    <td>${data[3] > 0 ? paraFormat(data[3]) : '-'}</td>
+                    <td>${data[4] > 0 ? paraFormat(data[4]) : '-'}</td>
+                    <td>${data[5] > 0 ? paraFormat(data[5]) : '-'}</td>
+                    <td style="font-weight:bold; background-color:#fafafa;">${data.toplam > 0 ? paraFormat(data.toplam) : '-'}</td>
+                `;
+                pBody.appendChild(tr);
+            });
+
+            const trToplam = document.createElement('tr');
+            trToplam.className = 'pivot-toplam';
+            trToplam.innerHTML = `
+                <td style="text-align:left;">Genel Toplam</td>
+                <td>${sutunToplamlari[1] > 0 ? paraFormat(sutunToplamlari[1]) : '-'}</td>
+                <td>${sutunToplamlari[2] > 0 ? paraFormat(sutunToplamlari[2]) : '-'}</td>
+                <td>${sutunToplamlari[3] > 0 ? paraFormat(sutunToplamlari[3]) : '-'}</td>
+                <td>${sutunToplamlari[4] > 0 ? paraFormat(sutunToplamlari[4]) : '-'}</td>
+                <td>${sutunToplamlari[5] > 0 ? paraFormat(sutunToplamlari[5]) : '-'}</td>
+                <td style="background-color: #0f172a; color: white;">${sutunToplamlari.genel > 0 ? paraFormat(sutunToplamlari.genel) : '-'}</td>
+            `;
+            pBody.appendChild(trToplam);
+        }
+
+        function setupDropdown(formId, liste, formVarsayilan, filtreId, filtreVarsayilan) {
+            const formEl = document.getElementById(formId);
+            const filtreEl = document.getElementById(filtreId);
+            const eskiFormVal = formEl.value; const eskiFiltreVal = filtreEl.value;
+
+            formEl.innerHTML = formVarsayilan ? `<option value="">${formVarsayilan}</option>` : '';
+            filtreEl.innerHTML = `<option value="">${filtreVarsayilan}</option>`;
+
+            liste.forEach(item => {
+                const opt = `<option value="${item.id}">${item.ad}</option>`;
+                formEl.innerHTML += opt; filtreEl.innerHTML += opt;
+            });
+
+            if(eskiFormVal) formEl.value = eskiFormVal;
+            if(eskiFiltreVal) filtreEl.value = eskiFiltreVal;
+        }
+
+        function renderAyarlarListesi(id, liste, key) {
+            const ul = document.getElementById(id); ul.innerHTML = '';
+            liste.forEach(item => {
+                ul.innerHTML += `<li><span>${item.ad}</span><button type="button" class="btn-delete" onclick="dinamikSil('${key}', ${item.id})"><i class="fa-solid fa-xmark"></i></button></li>`;
+            });
+        }
+
+        function grafikGuncelle(veriObj) {
+            const ctx = document.getElementById('statuGrafik').getContext('2d');
+            if (myChart) {
+                myChart.data.labels = Object.keys(veriObj);
+                myChart.data.datasets[0].data = Object.values(veriObj);
+                myChart.update();
+            } else {
+                myChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: { labels: Object.keys(veriObj), datasets: [{ data: Object.values(veriObj), backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#6b7280'], borderWidth: 1 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 11, font: { size: 11 } } } } }
+                });
+            }
+        }
+
+        function dinamikEkle(key, inputId) {
+            const input = document.getElementById(inputId); const deger = input.value.trim(); if(!deger) return;
+            const yeniId = db[key].length > 0 ? Math.max(...db[key].map(o => o.id)) + 1 : 1;
+            db[key].push({id: yeniId, ad: deger}); input.value = ''; dbKaydet();
+        }
+
+        function dinamikSil(key, id) {
+            if(confirm('Silmek istediğinize emin misiniz?')) { db[key] = db[key].filter(item => item.id != id); dbKaydet(); }
+        }
+
+        document.getElementById('firsatForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            db.firsatlar.push({
+                musteri_id: document.getElementById('f-musteri').value,
+                urun_id: document.getElementById('f-urun').value,
+                beklenen_gelir: document.getElementById('f-gelir').value,
+                olasilik: document.getElementById('f-olasilik').value,
+                statu_id: document.getElementById('f-statu').value,
+                tarih: document.getElementById('f-tarih').value
+            });
+            document.getElementById('f-gelir').value = '0'; dbKaydet();
+        });
+
+        window.firsatSil = function(index) {
+            if(confirm('Silmek istediğinize emin misiniz?')) { db.firsatlar.splice(index, 1); dbKaydet(); }
+        }
+
+        verileriTazele();
+    </script>
+</body>
+</html>
+"""
+
+@app.route('/')
+def ana_sayfa():
+    return render_template_string(HTML_TEMPLATE)
