@@ -2,13 +2,13 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# v13.0: Tamamen Boş Altyapı, Toplu Excel Kopyala-Yapıştır Modülü ve Excel Dışarı Aktarım Sistemi
+# v13.1: Hatalardan Arındırılmış, Toplu Excel Kopyala-Yapıştır Destekli Altyapı
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Kurumsal Satış Fırsat Takip Portalı v13.0</title>
+    <title>Kurumsal Satış Fırsat Takip Portalı v13.1</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -21,7 +21,6 @@ HTML_TEMPLATE = """
         .sayfa { display: none; }
         .sayfa.active { display: block; }
         
-        /* Üst Metrik Kartları */
         .dashboard-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid #1e3a8a; display: flex; justify-content: space-between; align-items: center; }
         .card.success { border-left-color: #10b981; }
@@ -29,13 +28,11 @@ HTML_TEMPLATE = """
         .card h3 { font-size: 13px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
         .card .value { font-size: 24px; font-weight: bold; margin-top: 5px; }
         
-        /* Ekran Düzeni Layout */
         .ana-icerik { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 20px; }
         .sol-kolon { width: 360px; display: flex; flex-direction: column; gap: 20px; }
         .form-section, .grafik-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .sag-tablo { background: white; flex: 1; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 580px; }
         
-        /* Alt Panel Düzeni: Özet Matris ve Görseldeki Hedef Paneli */
         .alt-paneller { display: grid; grid-template-columns: 1.6fr 1.4fr; gap: 20px; margin-top: 20px; }
         .alt-kesim-kutu { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         
@@ -44,24 +41,20 @@ HTML_TEMPLATE = """
         .form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 13px; color: #4b5563; }
         .form-group input, .form-group select { width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; outline: none; }
         button.btn-primary { width: 100%; background-color: #1e3a8a; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
-        button.btn-primary:hover { background-color: #1d4ed8; }
         
         button.btn-success { background-color: #10b981; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; }
-        button.btn-success:hover { background-color: #059669; }
         
         .filtre-bar { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-bottom: 15px; display: grid; grid-template-columns: 2fr repeat(3, 1fr); gap: 10px; }
         
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
         th, td { padding: 11px; border-bottom: 1px solid #e5e7eb; text-align: left; }
         th { background-color: #f8fafc; color: #475569; font-weight: 600; }
-        tr:hover { background-color: #f8fafc; }
         
         .pivot-table th { background-color: #1e3a8a; color: white; text-align: center; }
         .pivot-table td { text-align: right; font-weight: 500; }
         .pivot-table td.pivot-baslik { text-align: left; font-weight: bold; background-color: #f8fafc; }
         .pivot-table tr.pivot-toplam { background-color: #f1f5f9; font-weight: bold; }
         
-        /* BEYAZ KUTULU EXCEL HEDEF PANELİ TASARIMI */
         .excel-hedef-container { display: flex; flex-direction: column; gap: 15px; background-color: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
         .hedef-kart-satir { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
         .h-kutu { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 15px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
@@ -207,4 +200,142 @@ HTML_TEMPLATE = """
                                 <th>Açık</th>
                                 <th>Teklif Verildi</th>
                                 <th>Kazanıldı</th>
-                                <th>Kaybed
+                                <th>Kaybedildi</th>
+                                <th>Ertelendi</th>
+                                <th style="background-color: #0f172a;">Genel Toplam</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pivot-tablo-vucut"></tbody>
+                    </table>
+                </div>
+
+                <div class="alt-kesim-kutu">
+                    <h2><i class="fa-solid fa-bullseye"></i> Excel Birebir Hedef Paneli</h2>
+                    <div class="excel-hedef-container">
+                        <div class="hedef-kart-satir">
+                            <div class="h-kutu">
+                                <label>Yıllık Hedef</label>
+                                <div class="deger" style="color: #1e40af;">5.000.000 TL</div>
+                            </div>
+                            <div class="h-kutu">
+                                <label>Gerçekleşen Satış</label>
+                                <div class="deger" id="h-gerceklesen" style="color: #166534;">0 TL</div>
+                            </div>
+                        </div>
+                        <div class="hedef-kart-satir">
+                            <div class="h-kutu">
+                                <label>Kalan Hedef Tutarı</label>
+                                <div class="deger" id="h-kalan" style="color: #9a3412;">0 TL</div>
+                            </div>
+                            <div class="h-kutu">
+                                <label>Hedef Başarı Oranı</label>
+                                <div class="progress-alani">
+                                    <div class="deger" id="h-oran" style="margin-top: 0; color: #0f172a;">%0</div>
+                                    <div class="excel-progress-bar">
+                                        <div class="excel-progress-fill" id="h-progress"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="ayarlar-sayfa" class="sayfa">
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:20px;">
+                <div>
+                    <h2><i class="fa-solid fa-building"></i> Müşteri Portföyü Sözlüğü</h2>
+                    <div style="display:flex; gap:5px; margin-bottom:15px;">
+                        <input type="text" id="yeni-musteri" placeholder="Yeni Kurum Adı" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <button type="button" onclick="dinamikEkle('musteriler', 'yeni-musteri')" style="padding:8px 12px; background:#1e3a8a; color:white; border:none; border-radius:4px; cursor:pointer;">Ekle</button>
+                    </div>
+                    <ul id="liste-musteriler" class="sozluk-list"></ul>
+                </div>
+                <div>
+                    <h2><i class="fa-solid fa-box"></i> Kurumsal Ürün Çözümleri</h2>
+                    <div style="display:flex; gap:5px; margin-bottom:15px;">
+                        <input type="text" id="yeni-urun" placeholder="Yeni Çözüm Adı" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <button type="button" onclick="dinamikEkle('urunler', 'yeni-urun')" style="padding:8px 12px; background:#1e3a8a; color:white; border:none; border-radius:4px; cursor:pointer;">Ekle</button>
+                    </div>
+                    <ul id="liste-urunler" class="sozluk-list"></ul>
+                </div>
+                <div>
+                    <h2><i class="fa-solid fa-circle-check"></i> Süreç Durumları</h2>
+                    <div style="display:flex; gap:5px; margin-bottom:15px;">
+                        <input type="text" id="yeni-statu" placeholder="Yeni Satış Adımı" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <button type="button" onclick="dinamikEkle('statuler', 'yeni-statu')" style="padding:8px 12px; background:#1e3a8a; color:white; border:none; border-radius:4px; cursor:pointer;">Ekle</button>
+                    </div>
+                    <ul id="liste-statuler" class="sozluk-list"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let bosTabloYapisi = {
+            musteriler: [],
+            urunler: [
+                {id: 1, ad: "QDMS"}, {id: 2, ad: "Ensemble"}, {id: 3, ad: "Synergy CSP"}, {id: 4, ad: "BEAM"}, {id: 5, ad: "eBA"}
+            ],
+            statuler: [
+                {id: 1, ad: "Açık"}, {id: 2, ad: "Teklif Verildi"}, {id: 3, ad: "Kazanıldı"}, {id: 4, ad: "Kaybedildi"}, {id: 5, ad: "Ertelendi"}
+            ],
+            firsatlar: []
+        };
+
+        const KEY_V13_1 = 'excel_esnek_firsat_db_v13_1';
+        if (!localStorage.getItem(KEY_V13_1)) {
+            localStorage.setItem(KEY_V13_1, JSON.stringify(bosTabloYapisi));
+        }
+
+        let db = JSON.parse(localStorage.getItem(KEY_V13_1));
+        document.getElementById('f-tarih').valueAsDate = new Date();
+        let myChart = null;
+
+        function dbKaydet() {
+            localStorage.setItem(KEY_V13_1, JSON.stringify(db));
+            verileriTazele();
+        }
+
+        function hafizayiSifirla() {
+            if(confirm('Sistemdeki tüm müşterileri ve fırsatları silerek paneli bomboş yapmak istediğinize emin misiniz?')) {
+                localStorage.setItem(KEY_V13_1, JSON.stringify(bosTabloYapisi));
+                db = JSON.parse(localStorage.getItem(KEY_V13_1));
+                verileriTazele();
+            }
+        }
+
+        function topluMusteriYukle() {
+            const metin = document.getElementById('excelMusteriMetin').value.trim();
+            if(!metin) { alert('Lütfen önce Excel sütunundan kopyaladığınız verileri yapıştırın.'); return; }
+            
+            const satirlar = metin.split('\\n');
+            let eklenenSayisi = 0;
+            
+            satirlar.forEach(satir => {
+                const temizAd = satir.trim();
+                if(temizAd && !db.musteriler.some(m => m.ad.toLowerCase() === temizAd.toLowerCase())) {
+                    const yeniId = db.musteriler.length > 0 ? Math.max(...db.musteriler.map(o => o.id)) + 1 : 1;
+                    db.musteriler.push({id: yeniId, ad: temizAd});
+                    eklenenSayisi++;
+                }
+            });
+            
+            document.getElementById('excelMusteriMetin').value = '';
+            dbKaydet();
+            alert('Excel listesindeki ' + eklenenSayisi + ' adet benzersiz firma sözlüğe başarıyla aktarıldı!');
+        }
+
+        function excelDisariAktar() {
+            let csvIcerik = "data:text/csv;charset=utf-8,Musteri/Kurum,Urun/Cozum,Beklenen Gelir (TL),Olasilik (%),Statu,Kapanis Tarihi\\n";
+            db.firsatlar.forEach(f => {
+                const mAd = db.musteriler.find(m => m.id == f.musteri_id)?.ad || '-';
+                const uAd = db.urunler.find(u => u.id == f.urun_id)?.ad || '-';
+                const sAd = db.statuler.find(s => s.id == f.statu_id)?.ad || '-';
+                csvIcerik += `"${mAd}","${uAd}",${f.beklenen_gelir},${f.olasilik},"${sAd}","${f.tarih}"\\n`;
+            });
+            const encodedUri = encodeURI(csvIcerik);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link
