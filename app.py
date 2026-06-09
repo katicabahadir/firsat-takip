@@ -2,13 +2,13 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# v14.1: Hatalardan Arındırılmış Temiz Altyapı, Ayrı Yükleme Sekmesi ve Tablosal Hedef Paneli
+# v15.0: Alan Sıralaması Güncellenmiş Tertemiz Altyapı ve Veri Yükleme Sistemi
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Kurumsal Satış Fırsat Takip Portalı v14.1</title>
+    <title>Kurumsal Satış Fırsat Takip Portalı v15.0</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -61,7 +61,7 @@ HTML_TEMPLATE = """
         .pivot-table td.pivot-baslik { text-align: left; font-weight: bold; background-color: #f8fafc; }
         .pivot-table tr.pivot-toplam { background-color: #f1f5f9; font-weight: bold; }
         
-        /* BİREBİR EXCEL TABLOSU FORMATINDA DERLI TOPLU HEDEF PANELİ */
+        /* Excel Birleşik Tablo Formatında Hedef Paneli */
         .hedef-tablo { width: 100%; border-collapse: collapse; margin-top: 5px; }
         .hedef-tablo th { background-color: #f1f5f9; color: #334155; font-weight: 700; text-align: center; border: 1px solid #cbd5e1; font-size: 13px; padding: 10px; }
         .hedef-tablo td { border: 1px solid #cbd5e1; text-align: center; font-size: 16px; font-weight: bold; padding: 14px; background-color: #fff; }
@@ -131,19 +131,23 @@ HTML_TEMPLATE = """
                                 <select id="f-urun" required><option value="">Seçin...</option></select>
                             </div>
                             <div class="form-group">
-                                <label>Beklenen Tutar (TL)</label>
-                                <input type="number" id="f-gelir" value="0" min="0">
+                                <label>Mevcut Statü</label>
+                                <select id="f-statu" required></select>
                             </div>
                             <div class="form-group">
                                 <label>Kazanma Olasılığı (%)</label>
                                 <input type="number" id="f-olasilik" value="50" min="0" max="100">
                             </div>
                             <div class="form-group">
-                                <label>Mevcut Statü</label>
-                                <select id="f-statu" required></select>
+                                <label>Tahmini Tutar (TL)</label>
+                                <input type="number" id="f-tahmini-tutar" value="0" min="0">
                             </div>
                             <div class="form-group">
-                                <label>Tahmini Kapanış</label>
+                                <label>Beklenen Gelir (TL)</label>
+                                <input type="number" id="f-gelir" value="0" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Kapanış Tarihi</label>
                                 <input type="date" id="f-tarih">
                             </div>
                             <button type="submit" class="btn-primary">Fırsatı Havuza Ekle</button>
@@ -176,9 +180,10 @@ HTML_TEMPLATE = """
                             <tr>
                                 <th>Müşteri / Kurum</th>
                                 <th>Ürün / Çözüm</th>
-                                <th>Beklenen Gelir</th>
-                                <th>Olasılık</th>
                                 <th>Statü</th>
+                                <th>Olasılık</th>
+                                <th>Tahmini Tutar</th>
+                                <th>Beklenen Gelir</th>
                                 <th>Kapanış Tarihi</th>
                                 <th>Aksiyon</th>
                             </tr>
@@ -249,8 +254,8 @@ HTML_TEMPLATE = """
 
                 <div class="yukleme-kart">
                     <h2><i class="fa-solid fa-table"></i> 2. Excel'den Toplu Fırsat Havuzu Yükleme</h2>
-                    <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Excel'deki fırsat satırlarınızı (Müşteri, Ürün, Tutar, Olasılık, Statü, Tarih sırasıyla sekmeyle ayrılmış) yapıştırın:</p>
-                    <textarea id="excelFirsatMetin" class="excel-input" placeholder="Örn:\nBimser Çözüm\tQDMS\t150000\t80\tTeklif Verildi\t2026-06-15"></textarea>
+                    <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Excel'deki sütunlarınızı şu sıralamayla yan yana kopyalayıp yapıştırın:<br><b>Müşteri [Tab] Ürün [Tab] Statü [Tab] Olasılık [Tab] Tahmini Tutar [Tab] Beklenen Gelir [Tab] Kapanış Tarihi</b></p>
+                    <textarea id="excelFirsatMetin" class="excel-input" placeholder="Örn:\nBimser Çözüm\tQDMS\tTeklif Verildi\t80\t150000\t120000\t2026-06-15"></textarea>
                     <button type="button" class="btn-success" style="background-color: #1e3a8a;" onclick="topluFirsatYukle()"><i class="fa-solid fa-layer-group"></i> Fırsat Satırlarını Havuza Yükle</button>
                 </div>
             </div>
@@ -302,26 +307,26 @@ HTML_TEMPLATE = """
             firsatlar: []
         };
 
-        const KEY_V14_1 = 'excel_esnek_firsat_db_v14_1';
-        if (!localStorage.getItem(KEY_V14_1)) {
-            localStorage.setItem(KEY_V14_1, JSON.stringify(bosTabloYapisi));
+        const KEY_V15 = 'excel_esnek_firsat_db_v15';
+        if (!localStorage.getItem(KEY_V15)) {
+            localStorage.setItem(KEY_V15, JSON.stringify(bosTabloYapisi));
         }
 
-        let db = JSON.parse(localStorage.getItem(KEY_V14_1));
+        let db = JSON.parse(localStorage.getItem(KEY_V15));
         if (document.getElementById('f-tarih')) {
             document.getElementById('f-tarih').valueAsDate = new Date();
         }
         let myChart = null;
 
         function dbKaydet() {
-            localStorage.setItem(KEY_V14_1, JSON.stringify(db));
+            localStorage.setItem(KEY_V15, JSON.stringify(db));
             verileriTazele();
         }
 
         function hafizayiSifirla() {
             if(confirm('Sistemdeki tüm verileri sıfırlamak istediğinize emin misiniz?')) {
-                localStorage.setItem(KEY_V14_1, JSON.stringify(bosTabloYapisi));
-                db = JSON.parse(localStorage.getItem(KEY_V14_1));
+                localStorage.setItem(KEY_V15, JSON.stringify(bosTabloYapisi));
+                db = JSON.parse(localStorage.getItem(KEY_V15));
                 dbKaydet();
                 alert('Sistem başarıyla sıfırlandı.');
             }
@@ -345,6 +350,7 @@ HTML_TEMPLATE = """
             alert(sayac + ' yeni firma sözlüğe eklendi!');
         }
 
+        // SIRALAMAYA UYGUN YENİ PARSER MOTORU: müşteri, ürün, statu, olasılık, tahmini tutar, beklenen gelir, kapanış tarihi
         function topluFirsatYukle() {
             const metin = document.getElementById('excelFirsatMetin').value.trim();
             if(!metin) { alert('Lütfen Excel fırsat satırlarını yapıştırın.'); return; }
@@ -353,13 +359,14 @@ HTML_TEMPLATE = """
 
             satirlar.forEach(satir => {
                 const hucreler = satir.split('\\t');
-                if(hucreler.length >= 3) {
-                    const mAd = hucreler[0].trim();
-                    const uAd = hucreler[1].trim();
-                    const gelir = parseFloat(hucreler[2].replace(/[^0-9.-]+/g,"")) || 0;
+                if(hucreler.length >= 2) {
+                    const mAd = hucreler[0] ? hucreler[0].trim() : '';
+                    const uAd = hucreler[1] ? hucreler[1].trim() : '';
+                    const sAd = hucreler[2] ? hucreler[2].trim() : 'Açık';
                     const olasilik = hucreler[3] ? parseInt(hucreler[3]) : 50;
-                    const sAd = hucreler[4] ? hucreler[4].trim() : "Açık";
-                    const tarihStr = hucreler[5] ? hucreler[5].trim() : new Date().toISOString().split('T')[0];
+                    const tahminiTutar = hucreler[4] ? parseFloat(hucreler[4].replace(/[^0-9.-]+/g,"")) || 0 : 0;
+                    const gelir = hucreler[5] ? parseFloat(hucreler[5].replace(/[^0-9.-]+/g,"")) || 0 : 0;
+                    const tarihStr = hucreler[6] ? hucreler[6].trim() : new Date().toISOString().split('T')[0];
 
                     let musteri = db.musteriler.find(m => m.ad.toLowerCase() === mAd.toLowerCase());
                     if(!musteri && mAd) {
@@ -382,9 +389,10 @@ HTML_TEMPLATE = """
                         db.firsatlar.push({
                             musteri_id: musteri.id,
                             urun_id: urun.id,
-                            beklenen_gelir: gelir,
-                            olasilik: olasilik,
                             statu_id: statu.id,
+                            olasilik: olasilik,
+                            tahmini_tutar: tahminiTutar,
+                            beklenen_gelir: gelir,
                             tarih: tarihStr
                         });
                         sayac++;
@@ -394,16 +402,17 @@ HTML_TEMPLATE = """
 
             document.getElementById('excelFirsatMetin').value = '';
             dbKaydet();
-            alert(sayac + ' adet satış fırsatı başarıyla sisteme aktarıldı!');
+            alert(sayac + ' adet satış fırsatı başarıyla sıralamaya uygun olarak sisteme aktarıldı!');
         }
 
         function excelDisariAktar() {
-            let csvIcerik = "data:text/csv;charset=utf-8,Musteri/Kurum,Urun/Cozum,Beklenen Gelir (TL),Olasilik (%),Statu,Kapanis Tarihi\\n";
+            let csvIcerik = "data:text/csv;charset=utf-8,Musteri/Kurum,Urun/Cozum,Statu,Olasilik (%),Tahmini Tutar,Beklenen Gelir (TL),Kapanis Tarihi\\n";
             db.firsatlar.forEach(f => {
                 const mAd = db.musteriler.find(m => m.id == f.musteri_id)?.ad || '-';
                 const uAd = db.urunler.find(u => u.id == f.urun_id)?.ad || '-';
                 const sAd = db.statuler.find(s => s.id == f.statu_id)?.ad || '-';
-                csvIcerik += `"${mAd}","${uAd}",${f.beklenen_gelir},${f.olasilik},"${sAd}","${f.tarih}"\\n`;
+                const tTutar = f.tahmini_tutar || 0;
+                csvIcerik += `"${mAd}","${uAd}","${sAd}",${f.olasilik},${tTutar},${f.beklenen_gelir},"${f.tarih}"\\n`;
             });
             const encodedUri = encodeURI(csvIcerik);
             const link = document.createElement("a");
@@ -467,6 +476,7 @@ HTML_TEMPLATE = """
                 const statuAd = statuObj?.ad || 'Açık';
                 
                 const gelir = parseFloat(f.beklenen_gelir) || 0;
+                const tTutar = parseFloat(f.tahmini_tutar) || 0;
                 const olasilik = parseFloat(f.olasilik) || 0;
 
                 if(statuAd === 'Kazanıldı') {
@@ -496,9 +506,10 @@ HTML_TEMPLATE = """
                 tr.innerHTML = `
                     <td><strong>${musteriAd}</strong></td>
                     <td>${urunAd}</td>
-                    <td>${paraFormat(gelir)}</td>
-                    <td>%${olasilik}</td>
                     <td><span class="badge ${statuAd === 'Açık'?'acik':statuAd==='Kazanıldı'?'kazanildi':statuAd==='Kaybedildi'?'kaybedildi':statuAd==='Teklif Verildi'?'teklif':'ertelendi'}">${statuAd}</span></td>
+                    <td>%${olasilik}</td>
+                    <td>${paraFormat(tTutar)}</td>
+                    <td>${paraFormat(gelir)}</td>
                     <td>${t}</td>
                     <td><button type="button" class="btn-delete" onclick="firsatSil(${index})"><i class="fa-solid fa-trash-can"></i></button></td>
                 `;
@@ -574,73 +585,4 @@ HTML_TEMPLATE = """
 
             liste.forEach(item => {
                 const opt = `<option value="${item.id}">${item.ad}</option>`;
-                formEl.innerHTML += opt; filtreEl.innerHTML += opt;
-            });
-
-            if(eskiFormVal) formEl.value = eskiFormVal;
-            if(eskiFiltreVal) filtreEl.value = eskiFiltreVal;
-        }
-
-        function renderAyarlarListesi(id, liste, key) {
-            const ul = document.getElementById(id); if(!ul) return;
-            ul.innerHTML = '';
-            liste.forEach(item => {
-                ul.innerHTML += `<li><span>${item.ad}</span><button type="button" class="btn-delete" onclick="dinamikSil('${key}', ${item.id})"><i class="fa-solid fa-xmark"></i></button></li>`;
-            });
-        }
-
-        function grafikGuncelle(veriObj) {
-            const canvas = document.getElementById('statuGrafik');
-            if(!canvas) return;
-            const ctx = canvas.getContext('2d');
-            if (myChart) {
-                myChart.data.labels = Object.keys(veriObj);
-                myChart.data.datasets[0].data = Object.values(veriObj);
-                myChart.update();
-            } else {
-                myChart = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: { labels: Object.keys(veriObj), datasets: [{ data: Object.values(veriObj), backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#6b7280'], borderWidth: 1 }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 11, font: { size: 11 } } } } }
-                });
-            }
-        }
-
-        function dinamikEkle(key, inputId) {
-            const input = document.getElementById(inputId); const deger = input.value.trim(); if(!deger) return;
-            const yeniId = db[key].length > 0 ? Math.max(...db[key].map(o => o.id)) + 1 : 1;
-            db[key].push({id: yeniId, ad: deger}); input.value = ''; dbKaydet();
-        }
-
-        function dinamikSil(key, id) {
-            if(confirm('Silmek istediğinize emin misiniz?')) { db[key] = db[key].filter(item => item.id != id); dbKaydet(); }
-        }
-
-        if(document.getElementById('firsatForm')) {
-            document.getElementById('firsatForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                db.firsatlar.push({
-                    musteri_id: document.getElementById('f-musteri').value,
-                    urun_id: document.getElementById('f-urun').value,
-                    beklenen_gelir: document.getElementById('f-gelir').value,
-                    olasilik: document.getElementById('f-olasilik').value,
-                    statu_id: document.getElementById('f-statu').value,
-                    tarih: document.getElementById('f-tarih').value
-                });
-                document.getElementById('f-gelir').value = '0'; dbKaydet();
-            });
-        }
-
-        window.firsatSil = function(index) {
-            if(confirm('Silmek istediğinize emin misiniz?')) { db.firsatlar.splice(index, 1); dbKaydet(); }
-        }
-
-        verileriTazele();
-    </script>
-</body>
-</html>
-"""
-
-@app.route('/')
-def ana_sayfa():
-    return render_template_string(HTML_TEMPLATE)
+                formEl.
