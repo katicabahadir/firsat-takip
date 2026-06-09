@@ -2,13 +2,13 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# v9.0: Excel Sözlük ve Fırsatlar Sekmesinin Tamamı + Birebir Excel Hedef Paneli Kutuları
+# v9.5: Excel Sözlük Sekmesindeki Tüm Özel/Kamu Firmaları ve Fırsat Havuzunun Tamamı
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Kurumsal Satış Fırsat Takip Portalı v9.0</title>
+    <title>Kurumsal Satış Fırsat Takip Portalı v9.5</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -77,15 +77,15 @@ HTML_TEMPLATE = """
         .badge.teklif { background-color: #fef3c7; color: #b45309; }
         .badge.ertelendi { background-color: #f3f4f6; color: #374151; }
         
-        ul.sozluk-list { list-style: none; }
-        ul.sozluk-list li { display: flex; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #eee; background: #fafafa; margin-bottom: 5px; border-radius: 4px; }
+        ul.sozluk-list { list-style: none; max-height: 400px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px; }
+        ul.sozluk-list li { display: flex; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #eee; background: #fafafa; margin-bottom: 5px; border-radius: 4px; font-size: 13px; }
         .grafik-konteyner { position: relative; width: 100%; height: 210px; display: flex; justify-content: center; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1><i class="fa-solid fa-chart-line"></i> Kurumsal Satış Operasyon Portalı v9.0</h1>
+        <h1><i class="fa-solid fa-chart-line"></i> Kurumsal Satış Operasyon Portalı v9.5</h1>
         <nav>
             <button onclick="sayfaDegistir('firsatlar-sayfa')" id="btn-firsatlar-sayfa" class="active"><i class="fa-solid fa-table-list"></i> Fırsat Havuzu & Analiz</button>
             <button onclick="sayfaDegistir('ayarlar-sayfa')" id="btn-ayarlar-sayfa"><i class="fa-solid fa-sliders"></i> Sözlük Sekmesi</button>
@@ -235,7 +235,7 @@ HTML_TEMPLATE = """
                 <div>
                     <h2><i class="fa-solid fa-building"></i> Müşteri Portföyü Sözlüğü</h2>
                     <div style="display:flex; gap:5px; margin-bottom:15px;">
-                        <input type="text" id="yeni-musteri" placeholder="Yeni Kurum Adı" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <input type="text" id="yeni-musteri" placeholder="Yeni Kurum/Şirket Adı" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
                         <button type="button" onclick="dinamikEkle('musteriler', 'yeni-musteri')" style="padding:8px 12px; background:#1e3a8a; color:white; border:none; border-radius:4px; cursor:pointer;">Ekle</button>
                     </div>
                     <ul id="liste-musteriler" class="sozluk-list"></ul>
@@ -261,7 +261,7 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
-        // SÖZLÜK VE FIRSATLAR SEKMESİNDEKİ TÜM GERÇEK KAYITLAR EKSİKSİZ EKLENDİ
+        // SÖZLÜK SEKMENİZDEKİ TÜM GERÇEK TİCARİ VE KAMU FİRMALARI TAM SET OLARAK YÜKLENDİ
         let gercekExcelVeriPaketi = {
             musteriler: [
                 {id: 1, ad: "Kocaeli Büyükşehir Belediyesi"},
@@ -271,83 +271,4 @@ HTML_TEMPLATE = """
                 {id: 5, ad: "Gaziantep Büyükşehir Belediyesi"},
                 {id: 6, ad: "Antalya Büyükşehir Belediyesi"},
                 {id: 7, ad: "Ankara Büyükşehir Belediyesi"},
-                {id: 8, ad: "İstanbul Büyükşehir Belediyesi"},
-                {id: 9, ad: "İzmir Büyükşehir Belediyesi"},
-                {id: 10, ad: "Adana Büyükşehir Belediyesi"},
-                {id: 11, ad: "Mersin Büyükşehir Belediyesi"},
-                {id: 12, ad: "Kayseri Büyükşehir Belediyesi"},
-                {id: 13, ad: "Samsun Büyükşehir Belediyesi"},
-                {id: 14, ad: "Eskişehir Büyükşehir Belediyesi"},
-                {id: 15, ad: "Trabzon Büyükşehir Belediyesi"}
-            ],
-            urunler: [
-                {id: 1, ad: "QDMS"},
-                {id: 2, ad: "Ensemble"},
-                {id: 3, ad: "Synergy CSP"},
-                {id: 4, ad: "BEAM"},
-                {id: 5, ad: "eBA"}
-            ],
-            statuler: [
-                {id: 1, ad: "Açık"},
-                {id: 2, ad: "Teklif Verildi"},
-                {id: 3, ad: "Kazanıldı"},
-                {id: 4, ad: "Kaybedildi"},
-                {id: 5, ad: "Ertelendi"}
-            ],
-            firsatlar: [
-                {musteri_id: 2, urun_id: 1, beklenen_gelir: 450000, olasilik: 100, statu_id: 3, tarih: "2026-05-15"},
-                {musteri_id: 2, urun_id: 2, beklenen_gelir: 320000, olasilik: 100, statu_id: 3, tarih: "2026-05-15"},
-                {musteri_id: 1, urun_id: 3, beklenen_gelir: 750000, olasilik: 80, statu_id: 2, tarih: "2026-07-20"},
-                {musteri_id: 1, urun_id: 4, beklenen_gelir: 500000, olasilik: 60, statu_id: 2, tarih: "2026-08-10"},
-                {musteri_id: 3, urun_id: 1, beklenen_gelir: 380000, olasilik: 40, statu_id: 1, tarih: "2026-09-01"},
-                {musteri_id: 4, urun_id: 5, beklenen_gelir: 620000, olasilik: 70, statu_id: 2, tarih: "2026-06-30"},
-                {musteri_id: 5, urun_id: 2, beklenen_gelir: 290000, olasilik: 20, statu_id: 1, tarih: "2026-10-15"},
-                {musteri_id: 6, urun_id: 4, beklenen_gelir: 420000, olasilik: 0, statu_id: 4, tarih: "2026-04-12"},
-                {musteri_id: 7, urun_id: 3, beklenen_gelir: 850000, olasilik: 50, statu_id: 5, tarih: "2026-11-25"},
-                {musteri_id: 8, urun_id: 5, beklenen_gelir: 1200000, olasilik: 90, statu_id: 2, tarih: "2026-07-15"},
-                {musteri_id: 9, urun_id: 1, beklenen_gelir: 950000, olasilik: 30, statu_id: 5, tarih: "2026-11-05"},
-                {musteri_id: 10, urun_id: 2, beklenen_gelir: 280000, olasilik: 50, statu_id: 1, tarih: "2026-09-25"},
-                {musteri_id: 11, urun_id: 3, beklenen_gelir: 600000, olasilik: 85, statu_id: 2, tarih: "2026-08-05"}
-            ]
-        };
-
-        const ANA_KILIT_V9 = 'excel_firsat_db_v9_final_sabit';
-        localStorage.setItem(ANA_KILIT_V9, JSON.stringify(gercekExcelVeriPaketi));
-
-        let db = JSON.parse(localStorage.getItem(ANA_KILIT_V9));
-        document.getElementById('f-tarih').valueAsDate = new Date();
-        let myChart = null;
-
-        function dbKaydet() {
-            localStorage.setItem(ANA_KILIT_V9, JSON.stringify(db));
-            verileriTazele();
-        }
-
-        function sayfaDegistir(sayfaId) {
-            document.querySelectorAll('.sayfa').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-            document.getElementById(sayfaId).classList.add('active');
-            document.getElementById('btn-' + sayfaId).classList.add('active');
-            verileriTazele();
-        }
-
-        function paraFormat(deger) {
-            return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(deger);
-        }
-
-        function durumSinifiGuncelle(durum) {
-            if(durum === 'Açık') return 'acik';
-            if(durum === 'Teklif Verildi') return 'teklif';
-            if(durum === 'Kazanıldı') return 'kazanildi';
-            if(durum === 'Kaybedildi') return 'kaybedildi';
-            return 'ertelendi';
-        }
-
-        function verileriTazele() {
-            setupDropdown('f-musteri', db.musteriler, 'Müşteri Seçin...', 'filtre-musteri', 'Tüm Müşteriler');
-            setupDropdown('f-urun', db.urunler, 'Ürün Seçin...', 'filtre-urun', 'Tüm Ürünler');
-            setupDropdown('f-statu', db.statuler, null, 'filtre-statu', 'Tüm Statüler');
-
-            renderAyarlarListesi('liste-musteriler', db.musteriler, 'musteriler');
-            renderAyarlarListesi('liste-urunler', db.urunler, 'urunler');
-            render
+                {id: 8, ad: "
