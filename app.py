@@ -2,13 +2,13 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# v15.0: Alan Sıralaması Güncellenmiş Tertemiz Altyapı ve Veri Yükleme Sistemi
+# v15.1: Stabilize Edilmiş, Alan Sıralaması Güncel ve Sıfır Hatalı Altyapı
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Kurumsal Satış Fırsat Takip Portalı v15.0</title>
+    <title>Kurumsal Satış Fırsat Takip Portalı v15.1</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -44,7 +44,6 @@ HTML_TEMPLATE = """
         .form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 13px; color: #4b5563; }
         .form-group input, .form-group select { width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; outline: none; }
         button.btn-primary { width: 100%; background-color: #1e3a8a; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
-        button.btn-primary:hover { background-color: #1d4ed8; }
         
         button.btn-success { background-color: #10b981; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; }
         button.btn-success:hover { background-color: #059669; }
@@ -307,26 +306,31 @@ HTML_TEMPLATE = """
             firsatlar: []
         };
 
-        const KEY_V15 = 'excel_esnek_firsat_db_v15';
-        if (!localStorage.getItem(KEY_V15)) {
-            localStorage.setItem(KEY_V15, JSON.stringify(bosTabloYapisi));
+        const KEY_V15_1 = 'excel_esnek_firsat_db_v15_1';
+        if (!localStorage.getItem(KEY_V15_1)) {
+            localStorage.setItem(KEY_V15_1, JSON.stringify(bosTabloYapisi));
         }
 
-        let db = JSON.parse(localStorage.getItem(KEY_V15));
-        if (document.getElementById('f-tarih')) {
-            document.getElementById('f-tarih').valueAsDate = new Date();
-        }
+        let db = JSON.parse(localStorage.getItem(KEY_V15_1));
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            if (document.getElementById('f-tarih')) {
+                document.getElementById('f-tarih').valueAsDate = new Date();
+            }
+            verileriTazele();
+        });
+
         let myChart = null;
 
         function dbKaydet() {
-            localStorage.setItem(KEY_V15, JSON.stringify(db));
+            localStorage.setItem(KEY_V15_1, JSON.stringify(db));
             verileriTazele();
         }
 
         function hafizayiSifirla() {
             if(confirm('Sistemdeki tüm verileri sıfırlamak istediğinize emin misiniz?')) {
-                localStorage.setItem(KEY_V15, JSON.stringify(bosTabloYapisi));
-                db = JSON.parse(localStorage.getItem(KEY_V15));
+                localStorage.setItem(KEY_V15_1, JSON.stringify(bosTabloYapisi));
+                db = JSON.parse(localStorage.getItem(KEY_V15_1));
                 dbKaydet();
                 alert('Sistem başarıyla sıfırlandı.');
             }
@@ -350,7 +354,6 @@ HTML_TEMPLATE = """
             alert(sayac + ' yeni firma sözlüğe eklendi!');
         }
 
-        // SIRALAMAYA UYGUN YENİ PARSER MOTORU: müşteri, ürün, statu, olasılık, tahmini tutar, beklenen gelir, kapanış tarihi
         function topluFirsatYukle() {
             const metin = document.getElementById('excelFirsatMetin').value.trim();
             if(!metin) { alert('Lütfen Excel fırsat satırlarını yapıştırın.'); return; }
@@ -358,6 +361,7 @@ HTML_TEMPLATE = """
             let sayac = 0;
 
             satirlar.forEach(satir => {
+                if(!satir.trim()) return;
                 const hucreler = satir.split('\\t');
                 if(hucreler.length >= 2) {
                     const mAd = hucreler[0] ? hucreler[0].trim() : '';
@@ -402,7 +406,7 @@ HTML_TEMPLATE = """
 
             document.getElementById('excelFirsatMetin').value = '';
             dbKaydet();
-            alert(sayac + ' adet satış fırsatı başarıyla sıralamaya uygun olarak sisteme aktarıldı!');
+            alert(sayac + ' adet satış fırsatı başarıyla sisteme aktarıldı!');
         }
 
         function excelDisariAktar() {
@@ -411,8 +415,7 @@ HTML_TEMPLATE = """
                 const mAd = db.musteriler.find(m => m.id == f.musteri_id)?.ad || '-';
                 const uAd = db.urunler.find(u => u.id == f.urun_id)?.ad || '-';
                 const sAd = db.statuler.find(s => s.id == f.statu_id)?.ad || '-';
-                const tTutar = f.tahmini_tutar || 0;
-                csvIcerik += `"${mAd}","${uAd}","${sAd}",${f.olasilik},${tTutar},${f.beklenen_gelir},"${f.tarih}"\\n`;
+                csvIcerik += `"${mAd}","${uAd}","${sAd}",${f.olasilik},${f.tahmini_tutar || 0},${f.beklenen_gelir || 0},"${f.tarih}"\\n`;
             });
             const encodedUri = encodeURI(csvIcerik);
             const link = document.createElement("a");
@@ -461,10 +464,10 @@ HTML_TEMPLATE = """
                 pivotMatris[u.id] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, toplam: 0 };
             });
 
-            const aramaMetni = document.getElementById('arama-firma').value.toLowerCase();
-            const fMusteri = document.getElementById('filtre-musteri').value;
-            const fUrun = document.getElementById('filtre-urun').value;
-            const fStatu = document.getElementById('filtre-statu').value;
+            const aramaMetni = document.getElementById('arama-firma') ? document.getElementById('arama-firma').value.toLowerCase() : '';
+            const fMusteri = document.getElementById('filtre-musteri') ? document.getElementById('filtre-musteri').value : '';
+            const fUrun = document.getElementById('filtre-urun') ? document.getElementById('filtre-urun').value : '';
+            const fStatu = document.getElementById('filtre-statu') ? document.getElementById('filtre-statu').value : '';
 
             db.firsatlar.forEach((f, index) => {
                 const musteriObj = db.musteriler.find(m => m.id == f.musteri_id);
@@ -585,4 +588,31 @@ HTML_TEMPLATE = """
 
             liste.forEach(item => {
                 const opt = `<option value="${item.id}">${item.ad}</option>`;
-                formEl.
+                formEl.innerHTML += opt; filtreEl.innerHTML += opt;
+            });
+
+            if(eskiFormVal) formEl.value = eskiFormVal;
+            if(eskiFiltreVal) filtreEl.value = eskiFiltreVal;
+        }
+
+        function renderAyarlarListesi(id, liste, key) {
+            const ul = document.getElementById(id); if(!ul) return;
+            ul.innerHTML = '';
+            liste.forEach(item => {
+                ul.innerHTML += `<li><span>${item.ad}</span><button type="button" class="btn-delete" onclick="dinamikSil('${key}', ${item.id})"><i class="fa-solid fa-xmark"></i></button></li>`;
+            });
+        }
+
+        function grafikGuncelle(veriObj) {
+            const canvas = document.getElementById('statuGrafik');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (myChart) {
+                myChart.data.labels = Object.keys(veriObj);
+                myChart.data.datasets[0].data = Object.values(veriObj);
+                myChart.update();
+            } else {
+                myChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: { labels: Object.keys(veriObj), datasets: [{ data: Object.values(veriObj), backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#6b7280'], borderWidth: 1 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend:
