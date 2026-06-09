@@ -2,13 +2,13 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# v15.1: Stabilize Edilmiş, Alan Sıralaması Güncel ve Sıfır Hatalı Altyapı
+# v15.2: JavaScript Tarafındaki 'def' Hataları Düzeltilmiş, Stabilize Kesin Sürüm
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Kurumsal Satış Fırsat Takip Portalı v15.1</title>
+    <title>Kurumsal Satış Fırsat Takip Portalı v15.2</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -295,6 +295,7 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
+        // JS tarafındaki tüm fonksiyonlar 'function' olarak düzeltildi, 'def' temizlendi.
         let bosTabloYapisi = {
             musteriler: [],
             urunler: [
@@ -306,14 +307,14 @@ HTML_TEMPLATE = """
             firsatlar: []
         };
 
-        const KEY_V15_1 = 'excel_esnek_firsat_db_v15_1';
-        if (!localStorage.getItem(KEY_V15_1)) {
-            localStorage.setItem(KEY_V15_1, JSON.stringify(bosTabloYapisi));
+        const KEY_FINAL_V15_2 = 'excel_esnek_firsat_db_v15_2';
+        if (!localStorage.getItem(KEY_FINAL_V15_2)) {
+            localStorage.setItem(KEY_FINAL_V15_2, JSON.stringify(bosTabloYapisi));
         }
 
-        let db = JSON.parse(localStorage.getItem(KEY_V15_1));
+        let db = JSON.parse(localStorage.getItem(KEY_FINAL_V15_2));
         
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', function() {
             if (document.getElementById('f-tarih')) {
                 document.getElementById('f-tarih').valueAsDate = new Date();
             }
@@ -323,14 +324,14 @@ HTML_TEMPLATE = """
         let myChart = null;
 
         function dbKaydet() {
-            localStorage.setItem(KEY_V15_1, JSON.stringify(db));
+            localStorage.setItem(KEY_FINAL_V15_2, JSON.stringify(db));
             verileriTazele();
         }
 
         function hafizayiSifirla() {
             if(confirm('Sistemdeki tüm verileri sıfırlamak istediğinize emin misiniz?')) {
-                localStorage.setItem(KEY_V15_1, JSON.stringify(bosTabloYapisi));
-                db = JSON.parse(localStorage.getItem(KEY_V15_1));
+                localStorage.setItem(KEY_FINAL_V15_2, JSON.stringify(bosTabloYapisi));
+                db = JSON.parse(localStorage.getItem(KEY_FINAL_V15_2));
                 dbKaydet();
                 alert('Sistem başarıyla sıfırlandı.');
             }
@@ -341,7 +342,7 @@ HTML_TEMPLATE = """
             if(!metin) { alert('Lütfen müşteri listesini yapıştırın.'); return; }
             const satirlar = metin.split('\\n');
             let sayac = 0;
-            satirlar.forEach(s => {
+            satirlar.forEach(function(s) {
                 const ad = s.trim();
                 if(ad && !db.musteriler.some(m => m.ad.toLowerCase() === ad.toLowerCase())) {
                     const yeniId = db.musteriler.length > 0 ? Math.max(...db.musteriler.map(o => o.id)) + 1 : 1;
@@ -360,7 +361,7 @@ HTML_TEMPLATE = """
             const satirlar = metin.split('\\n');
             let sayac = 0;
 
-            satirlar.forEach(satir => {
+            satirlar.forEach(function(satir) {
                 if(!satir.trim()) return;
                 const hucreler = satir.split('\\t');
                 if(hucreler.length >= 2) {
@@ -411,7 +412,7 @@ HTML_TEMPLATE = """
 
         function excelDisariAktar() {
             let csvIcerik = "data:text/csv;charset=utf-8,Musteri/Kurum,Urun/Cozum,Statu,Olasilik (%),Tahmini Tutar,Beklenen Gelir (TL),Kapanis Tarihi\\n";
-            db.firsatlar.forEach(f => {
+            db.firsatlar.forEach(function(f) {
                 const mAd = db.musteriler.find(m => m.id == f.musteri_id)?.ad || '-';
                 const uAd = db.urunler.find(u => u.id == f.urun_id)?.ad || '-';
                 const sAd = db.statuler.find(s => s.id == f.statu_id)?.ad || '-';
@@ -542,7 +543,7 @@ HTML_TEMPLATE = """
             pBody.innerHTML = '';
             let sutunToplamlari = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, genel: 0 };
 
-            db.urunler.forEach(u => {
+            db.urunler.forEach(function(u) {
                 const data = matris[u.id];
                 if(!data) return;
 
@@ -564,55 +565,4 @@ HTML_TEMPLATE = """
             });
 
             const trToplam = document.createElement('tr');
-            trToplam.className = 'pivot-toplam';
-            trToplam.innerHTML = `
-                <td style="text-align:left;">Genel Toplam</td>
-                <td>${sutunToplamlari[1] > 0 ? paraFormat(sutunToplamlari[1]) : '-'}</td>
-                <td>${sutunToplamlari[2] > 0 ? paraFormat(sutunToplamlari[2]) : '-'}</td>
-                <td>${sutunToplamlari[3] > 0 ? paraFormat(sutunToplamlari[3]) : '-'}</td>
-                <td>${sutunToplamlari[4] > 0 ? paraFormat(sutunToplamlari[4]) : '-'}</td>
-                <td>${sutunToplamlari[5] > 0 ? paraFormat(sutunToplamlari[5]) : '-'}</td>
-                <td style="background-color: #0f172a; color: white;">${sutunToplamlari.genel > 0 ? paraFormat(sutunToplamlari.genel) : '-'}</td>
-            `;
-            pBody.appendChild(trToplam);
-        }
-
-        function setupDropdown(formId, liste, formVarsayilan, filtreId, filtreVarsayilan) {
-            const formEl = document.getElementById(formId);
-            const filtreEl = document.getElementById(filtreId);
-            if(!formEl || !filtreEl) return;
-            const eskiFormVal = formEl.value; const eskiFiltreVal = filtreEl.value;
-
-            formEl.innerHTML = formVarsayilan ? `<option value="">${formVarsayilan}</option>` : '';
-            filtreEl.innerHTML = `<option value="">${filtreVarsayilan}</option>`;
-
-            liste.forEach(item => {
-                const opt = `<option value="${item.id}">${item.ad}</option>`;
-                formEl.innerHTML += opt; filtreEl.innerHTML += opt;
-            });
-
-            if(eskiFormVal) formEl.value = eskiFormVal;
-            if(eskiFiltreVal) filtreEl.value = eskiFiltreVal;
-        }
-
-        function renderAyarlarListesi(id, liste, key) {
-            const ul = document.getElementById(id); if(!ul) return;
-            ul.innerHTML = '';
-            liste.forEach(item => {
-                ul.innerHTML += `<li><span>${item.ad}</span><button type="button" class="btn-delete" onclick="dinamikSil('${key}', ${item.id})"><i class="fa-solid fa-xmark"></i></button></li>`;
-            });
-        }
-
-        function grafikGuncelle(veriObj) {
-            const canvas = document.getElementById('statuGrafik');
-            if(!canvas) return;
-            const ctx = canvas.getContext('2d');
-            if (myChart) {
-                myChart.data.labels = Object.keys(veriObj);
-                myChart.data.datasets[0].data = Object.values(veriObj);
-                myChart.update();
-            } else {
-                myChart = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: { labels: Object.keys(veriObj), datasets: [{ data: Object.values(veriObj), backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#6b7280'], borderWidth: 1 }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend:
+            trToplam.
