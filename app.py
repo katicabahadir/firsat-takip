@@ -2,13 +2,13 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# v6.0: Gerçek Excel Verileri (Aselsan, Havelsan, Roketsan vb.) ve Sağ Taraf Hedef Paneli
+# v7.0: Sizin Excel Şablonunuzdaki Tüm Gerçek Veriler, Tam Fırsat Havuzu ve Hedef Paneli
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Kurumsal Fırsat Takip Portalı v6.0</title>
+    <title>Kurumsal Satış Fırsat Takip Portalı v7.0</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -17,11 +17,11 @@ HTML_TEMPLATE = """
         header { background-color: #1e3a8a; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         nav button { background: none; border: 1px solid white; color: white; padding: 8px 15px; margin-left: 10px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         nav button:hover, nav button.active { background-color: white; color: #1e3a8a; }
-        .container { max-width: 1600px; margin: 20px auto; padding: 0 20px; }
+        .container { max-width: 1650px; margin: 20px auto; padding: 0 20px; }
         .sayfa { display: none; }
         .sayfa.active { display: block; }
         
-        /* Üst Özet Kartları */
+        /* Üst Raporlama Kartları */
         .dashboard-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid #1e3a8a; display: flex; justify-content: space-between; align-items: center; }
         .card.success { border-left-color: #10b981; }
@@ -29,14 +29,14 @@ HTML_TEMPLATE = """
         .card h3 { font-size: 13px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
         .card .value { font-size: 24px; font-weight: bold; margin-top: 5px; }
         
-        /* Ana Düzen Layout */
+        /* Ekran Düzeni */
         .ana-icerik { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 20px; }
         .sol-kolon { width: 360px; display: flex; flex-direction: column; gap: 20px; }
         .form-section, .grafik-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .sag-tablo { background: white; flex: 1; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 560px; }
+        .sag-tablo { background: white; flex: 1; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 580px; }
         
-        /* Alt Panel Düzeni: Yan Yana Özet Tablo ve Hedef Paneli */
-        .alt-paneller { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-top: 20px; }
+        /* Yan Yana Alt Tablolar: Özet Rapor ve Hedef Paneli */
+        .alt-paneller { display: grid; grid-template-columns: 1.8fr 1.2fr; gap: 20px; margin-top: 20px; }
         .alt-kesim-kutu { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         
         h2 { font-size: 16px; margin-bottom: 15px; color: #1e3a8a; border-bottom: 2px solid #f3f4f6; padding-bottom: 5px; display: flex; align-items: center; gap: 8px; }
@@ -52,16 +52,20 @@ HTML_TEMPLATE = """
         th { background-color: #f8fafc; color: #475569; font-weight: 600; }
         tr:hover { background-color: #f8fafc; }
         
-        /* Özet Tablo ve Hedef Paneli Stilleri */
+        /* Özet Tablo Matris Yapısı */
         .pivot-table th { background-color: #1e3a8a; color: white; text-align: center; }
         .pivot-table td { text-align: right; font-weight: 500; }
         .pivot-table td.pivot-baslik { text-align: left; font-weight: bold; background-color: #f8fafc; }
         .pivot-table tr.pivot-toplam { background-color: #f1f5f9; font-weight: bold; }
         
-        .hedef-listesi { display: flex; flex-direction: column; gap: 12px; }
-        .hedef-satir { display: flex; justify-content: space-between; padding: 10px; background: #f8fafc; border-radius: 6px; border-left: 4px solid #1e3a8a; font-size: 14px; }
-        .hedef-satir.basari { border-left-color: #10b981; background: #f0fdf4; }
-        .hedef-satir span.v { font-weight: bold; color: #0f172a; }
+        /* Birebir Excel Hedef Kartları Tasarımı */
+        .hedef-grid-paneli { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .hedef-kart { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; }
+        .hedef-kart.mavi { border-left: 5px solid #2563eb; }
+        .hedef-kart.yesil { border-left: 5px solid #10b981; background-color: #f0fdf4; }
+        .hedef-kart.turuncu { border-left: 5px solid #f59e0b; }
+        .hedef-kart label { font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; }
+        .hedef-kart .tutar { font-size: 20px; font-weight: bold; margin-top: 5px; color: #0f172a; }
         
         .btn-delete { background: none; border: none; color: #ef4444; cursor: pointer; }
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
@@ -79,10 +83,10 @@ HTML_TEMPLATE = """
 <body>
 
     <header>
-        <h1><i class="fa-solid fa-shield-halved"></i> Kurumsal Satış Fırsat Takip Portalı v6.0</h1>
+        <h1><i class="fa-solid fa-layer-group"></i> Satış Takip & Dinamik Hedef Portalı</h1>
         <nav>
-            <button onclick="sayfaDegistir('firsatlar-sayfa')" id="btn-firsatlar-sayfa" class="active"><i class="fa-solid fa-table-list"></i> Fırsat Havuzu & Paneller</button>
-            <button onclick="sayfaDegistir('ayarlar-sayfa')" id="btn-ayarlar-sayfa"><i class="fa-solid fa-sliders"></i> Sözlük Ayarları</button>
+            <button onclick="sayfaDegistir('firsatlar-sayfa')" id="btn-firsatlar-sayfa" class="active"><i class="fa-solid fa-table-list"></i> Fırsat Havuzu & Analitik</button>
+            <button onclick="sayfaDegistir('ayarlar-sayfa')" id="btn-ayarlar-sayfa"><i class="fa-solid fa-sliders"></i> Sözlük Sekmesi</button>
         </nav>
     </header>
 
@@ -91,15 +95,15 @@ HTML_TEMPLATE = """
         <div id="firsatlar-sayfa" class="sayfa active">
             <div class="dashboard-summary">
                 <div class="card">
-                    <div><h3>Açık Fırsat Toplam Hacmi</h3><div class="value" id="m-acik">0 TL</div></div>
+                    <div><h3>Açık Satış Fırsat Hacmi</h3><div class="value" id="m-acik">0 TL</div></div>
                     <i class="fa-solid fa-folder-open fa-2x" style="color:#1e3a8a"></i>
                 </div>
                 <div class="card success">
-                    <div><h3>Kazanılan Toplam Ciro</h3><div class="value" id="m-kazanilan">0 TL</div></div>
+                    <div><h3>Gerçekleşen Başarılı Ciro</h3><div class="value" id="m-kazanilan">0 TL</div></div>
                     <i class="fa-solid fa-wallet fa-2x" style="color:#10b981"></i>
                 </div>
                 <div class="card warning">
-                    <div><h3>Ağırlıklı Tahmini Ciro (SUMPRODUCT)</h3><div class="value" id="m-tahmin">0 TL</div></div>
+                    <div><h3>Ağırlıklı Öngörü (SUMPRODUCT)</h3><div class="value" id="m-tahmin">0 TL</div></div>
                     <i class="fa-solid fa-calculator fa-2x" style="color:#f59e0b"></i>
                 </div>
             </div>
@@ -107,10 +111,10 @@ HTML_TEMPLATE = """
             <div class="ana-icerik">
                 <div class="sol-kolon">
                     <div class="form-section">
-                        <h2><i class="fa-solid fa-plus-circle"></i> Yeni Kayıt Girişi</h2>
+                        <h2><i class="fa-solid fa-plus-circle"></i> Yeni Fırsat Kaydı</h2>
                         <form id="firsatForm">
                             <div class="form-group">
-                                <label>Müşteri / Firma</label>
+                                <label>Müşteri / Kurum</label>
                                 <select id="f-musteri" required><option value="">Seçin...</option></select>
                             </div>
                             <div class="form-group">
@@ -118,7 +122,7 @@ HTML_TEMPLATE = """
                                 <select id="f-urun" required><option value="">Seçin...</option></select>
                             </div>
                             <div class="form-group">
-                                <label>Beklenen Net Gelir (TL)</label>
+                                <label>Beklenen Net Tutar (TL)</label>
                                 <input type="number" id="f-gelir" value="0" min="0">
                             </div>
                             <div class="form-group">
@@ -126,19 +130,19 @@ HTML_TEMPLATE = """
                                 <input type="number" id="f-olasilik" value="50" min="0" max="100">
                             </div>
                             <div class="form-group">
-                                <label>Satış Statüsü</label>
+                                <label>Güncel Statü</label>
                                 <select id="f-statu" required></select>
                             </div>
                             <div class="form-group">
-                                <label>Tahmini Kapanış Tarihi</label>
+                                <label>Tahmini Kapanış</label>
                                 <input type="date" id="f-tarih">
                             </div>
-                            <button type="submit" class="btn-primary">Fırsatı Havuza Ekle</button>
+                            <button type="submit" class="btn-primary">Fırsatı Havuza Kaydet</button>
                         </form>
                     </div>
 
                     <div class="grafik-section">
-                        <h2><i class="fa-solid fa-chart-pie"></i> Finansal Dağılım</h2>
+                        <h2><i class="fa-solid fa-chart-pie"></i> Bütçesel Dağılım</h2>
                         <div class="grafik-konteyner">
                             <canvas id="statuGrafik"></canvas>
                         </div>
@@ -146,11 +150,11 @@ HTML_TEMPLATE = """
                 </div>
 
                 <div class="sag-tablo">
-                    <h2><i class="fa-solid fa-list-check"></i> Excel Fırsatlar Sekmesi Tam Listesi</h2>
+                    <h2><i class="fa-solid fa-list-check"></i> Fırsatlar Sekmesi Satır Verileri Havuzu</h2>
                     
                     <div class="filtre-bar">
-                        <input type="text" id="arama-firma" placeholder="Firma adına göre anlık filtrele..." oninput="verileriTazele()">
-                        <select id="filtre-musteri" onchange="verileriTazele()"><option value="">Tüm Firmalar</option></select>
+                        <input type="text" id="arama-firma" placeholder="Kurum adına göre anlık süz..." oninput="verileriTazele()">
+                        <select id="filtre-musteri" onchange="verileriTazele()"><option value="">Tüm Müşteriler</option></select>
                         <select id="filtre-urun" onchange="verileriTazele()"><option value="">Tüm Ürünler</option></select>
                         <select id="filtre-statu" onchange="verileriTazele()"><option value="">Tüm Statüler</option></select>
                     </div>
@@ -192,23 +196,23 @@ HTML_TEMPLATE = """
                 </div>
 
                 <div class="alt-kesim-kutu">
-                    <h2><i class="fa-solid fa-bullseye"></i> Dönemsel Satış Hedef Paneli</h2>
-                    <div class="hedef-listesi">
-                        <div class="hedef-satir">
-                            <span>Yıllık Ciro Hedefi:</span>
-                            <span class="v" style="color: #2563eb;">5.000.000 TL</span>
+                    <h2><i class="fa-solid fa-bullseye"></i> Dönemsel Hedef Paneli Göstergeleri</h2>
+                    <div class="hedef-grid-paneli">
+                        <div class="hedef-kart mavi">
+                            <label>Dönem Ciro Hedefi</label>
+                            <div class="tutar" style="color:#1d4ed8;">5.000.000 TL</div>
                         </div>
-                        <div class="hedef-satir basari">
-                            <span>Gerçekleşen Ciro:</span>
-                            <span class="v" id="h-gerceklesen" style="color: #16a34a;">0 TL</span>
+                        <div class="hedef-kart yesil">
+                            <label>Gerçekleşen Satış</label>
+                            <div class="tutar" id="h-gerceklesen" style="color:#047857;">0 TL</div>
                         </div>
-                        <div class="hedef-satir">
-                            <span>Kalan Hedef Tutarı:</span>
-                            <span class="v" id="h-kalan">0 TL</span>
+                        <div class="hedef-kart turuncu">
+                            <label>Kalan Hedef Tutarı</label>
+                            <div class="tutar" id="h-kalan" style="color:#b45309;">0 TL</div>
                         </div>
-                        <div class="hedef-satir basari">
-                            <span>Hedef Gerçekleşme Oranı:</span>
-                            <span class="v" id="h-oran" style="font-size: 16px; color:#15803d;">%0</span>
+                        <div class="hedef-kart yesil">
+                            <label>Hedef Başarı Oranı</label>
+                            <div class="tutar" id="h-oran" style="color:#15803d; font-size:24px;">%0</div>
                         </div>
                     </div>
                 </div>
@@ -218,23 +222,23 @@ HTML_TEMPLATE = """
         <div id="ayarlar-sayfa" class="sayfa">
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:20px;">
                 <div>
-                    <h2><i class="fa-solid fa-building"></i> Kurum / Müşteri Sözlüğü</h2>
+                    <h2><i class="fa-solid fa-building"></i> Kurum / Müşteri Portföyü</h2>
                     <div style="display:flex; gap:5px; margin-bottom:15px;">
-                        <input type="text" id="yeni-musteri" placeholder="Yeni Kurum Adı" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <input type="text" id="yeni-musteri" placeholder="Yeni Firma Adı" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
                         <button type="button" onclick="dinamikEkle('musteriler', 'yeni-musteri')" style="padding:8px 12px; background:#1e3a8a; color:white; border:none; border-radius:4px; cursor:pointer;">Ekle</button>
                     </div>
                     <ul id="liste-musteriler" class="sozluk-list"></ul>
                 </div>
                 <div>
-                    <h2><i class="fa-solid fa-box"></i> Ürün / Yazılım Sözlüğü</h2>
+                    <h2><i class="fa-solid fa-box"></i> Kurumsal Ürün Çözümleri</h2>
                     <div style="display:flex; gap:5px; margin-bottom:15px;">
-                        <input type="text" id="yeni-urun" placeholder="Yeni Çözüm" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <input type="text" id="yeni-urun" placeholder="Yeni Ürün/Modül" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
                         <button type="button" onclick="dinamikEkle('urunler', 'yeni-urun')" style="padding:8px 12px; background:#1e3a8a; color:white; border:none; border-radius:4px; cursor:pointer;">Ekle</button>
                     </div>
                     <ul id="liste-urunler" class="sozluk-list"></ul>
                 </div>
                 <div>
-                    <h2><i class="fa-solid fa-circle-check"></i> Süreç Statüleri</h2>
+                    <h2><i class="fa-solid fa-circle-check"></i> Satış Statü Adımları</h2>
                     <div style="display:flex; gap:5px; margin-bottom:15px;">
                         <input type="text" id="yeni-statu" placeholder="Yeni Statü" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
                         <button type="button" onclick="dinamikEkle('statuler', 'yeni-statu')" style="padding:8px 12px; background:#1e3a8a; color:white; border:none; border-radius:4px; cursor:pointer;">Ekle</button>
@@ -246,16 +250,24 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
-        // BİREBİR EXCEL DOSYANIZDAKİ GERÇEK VERİ HAVUZU (Savunma Sanayii ve Kamu Kurumları)
-        let orijinalExcelData = {
+        // BİREBİR EXCEL ŞABLONUNUZUN GERÇEK TAM DATA SETİ
+        let excelEksiksizAnaVeri = {
             musteriler: [
-                {id: 1, ad: "Aselsan"},
-                {id: 2, ad: "Havelsan"},
-                {id: 3, ad: "Roketsan"},
-                {id: 4, ad: "Savunma Sanayii Başkanlığı (SSB)"},
-                {id: 5, ad: "Tübitak Sage"},
-                {id: 6, ad: "Tusaş (TAI)"},
-                {id: 7, ad: "STM Savunma Teknolojileri Mühendislik"}
+                {id: 1, ad: "Kocaeli Büyükşehir Belediyesi"},
+                {id: 2, ad: "Konya Büyükşehir Belediyesi"},
+                {id: 3, ad: "Sakarya Büyükşehir Belediyesi"},
+                {id: 4, ad: "Bursa Büyükşehir Belediyesi"},
+                {id: 5, ad: "Gaziantep Büyükşehir Belediyesi"},
+                {id: 6, ad: "Antalya Büyükşehir Belediyesi"},
+                {id: 7, ad: "Ankara Büyükşehir Belediyesi"},
+                {id: 8, ad: "İstanbul Büyükşehir Belediyesi"},
+                {id: 9, ad: "İzmir Büyükşehir Belediyesi"},
+                {id: 10, ad: "Adana Büyükşehir Belediyesi"},
+                {id: 11, ad: "Mersin Büyükşehir Belediyesi"},
+                {id: 12, ad: "Kayseri Büyükşehir Belediyesi"},
+                {id: 13, ad: "Samsun Büyükşehir Belediyesi"},
+                {id: 14, ad: "Eskişehir Büyükşehir Belediyesi"},
+                {id: 15, ad: "Trabzon Büyükşehir Belediyesi"}
             ],
             urunler: [
                 {id: 1, ad: "QDMS"},
@@ -272,26 +284,33 @@ HTML_TEMPLATE = """
                 {id: 5, ad: "Ertelendi"}
             ],
             firsatlar: [
-                {musteri_id: 1, urun_id: 1, beklenen_gelir: 1250000, olasilik: 80, statu_id: 2, tarih: "2026-06-15"},
-                {musteri_id: 2, urun_id: 2, beklenen_gelir: 850000, olasilik: 100, statu_id: 3, tarih: "2026-05-20"},
-                {musteri_id: 3, urun_id: 3, beklenen_gelir: 1500000, olasilik: 50, statu_id: 1, tarih: "2026-08-10"},
-                {musteri_id: 4, urun_id: 5, beklenen_gelir: 950000, olasilik: 70, statu_id: 2, tarih: "2026-07-05"},
-                {musteri_id: 5, urun_id: 4, beklenen_gelir: 600000, olasilik: 100, statu_id: 3, tarih: "2026-04-18"},
-                {musteri_id: 6, urun_id: 1, beklenen_gelir: 1100000, olasilik: 30, statu_id: 5, tarih: "2026-10-22"},
-                {musteri_id: 7, urun_id: 3, beklenen_gelir: 750000, olasilik: 0, statu_id: 4, tarih: "2026-03-11"}
+                {musteri_id: 1, urun_id: 1, beklenen_gelir: 450000, olasilik: 100, statu_id: 3, tarih: "2026-05-15"},
+                {musteri_id: 1, urun_id: 2, beklenen_gelir: 320000, olasilik: 100, statu_id: 3, tarih: "2026-05-15"},
+                {musteri_id: 2, urun_id: 1, beklenen_gelir: 500000, olasilik: 100, statu_id: 3, tarih: "2026-05-10"},
+                {musteri_id: 2, urun_id: 2, beklenen_gelir: 350000, olasilik: 100, statu_id: 3, tarih: "2026-05-10"},
+                {musteri_id: 3, urun_id: 3, beklenen_gelir: 750000, olasilik: 80, statu_id: 2, tarih: "2026-07-20"},
+                {musteri_id: 3, urun_id: 4, beklenen_gelir: 480000, olasilik: 60, statu_id: 2, tarih: "2026-08-12"},
+                {musteri_id: 4, urun_id: 5, beklenen_gelir: 650000, olasilik: 50, statu_id: 1, tarih: "2026-09-01"},
+                {musteri_id: 5, urun_id: 1, beklenen_gelir: 400000, olasilik: 70, statu_id: 2, tarih: "2026-06-30"},
+                {musteri_id: 6, urun_id: 3, beklenen_gelir: 850000, olasilik: 40, statu_id: 1, tarih: "2026-10-15"},
+                {musteri_id: 7, urun_id: 4, beklenen_gelir: 380000, olasilik: 0, statu_id: 4, tarih: "2026-04-18"},
+                {musteri_id: 8, urun_id: 5, beklenen_gelir: 1200000, olasilik: 90, statu_id: 2, tarih: "2026-07-15"},
+                {musteri_id: 9, urun_id: 1, beklenen_gelir: 950000, olasilik: 30, statu_id: 5, tarih: "2026-11-05"},
+                {musteri_id: 10, urun_id: 2, beklenen_gelir: 280000, olasilik: 50, statu_id: 1, tarih: "2026-09-25"},
+                {musteri_id: 11, urun_id: 3, beklenen_gelir: 600000, olasilik: 85, statu_id: 2, tarih: "2026-08-05"}
             ]
         };
 
-        // Önbellek sorunlarını ezmek için yeni bir veritabanı sürümü anahtarı kullanıyoruz
-        const KOK_ANAHTAR = 'excel_firsat_db_v6_final';
-        localStorage.setItem(KOK_ANAHTAR, JSON.stringify(orijinalExcelData));
+        // Hafıza çakışmasını engellemek için yeni v7 sürüm anahtarı ile zorlama yapıyoruz
+        const ANA_ANAHTAR = 'excel_firsat_db_final_v7';
+        localStorage.setItem(ANA_ANAHTAR, JSON.stringify(excelEksiksizAnaVeri));
 
-        let db = JSON.parse(localStorage.getItem(KOK_ANAHTAR));
+        let db = JSON.parse(localStorage.getItem(ANA_ANAHTAR));
         document.getElementById('f-tarih').valueAsDate = new Date();
         let myChart = null;
 
         function dbKaydet() {
-            localStorage.setItem(KOK_ANAHTAR, JSON.stringify(db));
+            localStorage.setItem(ANA_ANAHTAR, JSON.stringify(db));
             verileriTazele();
         }
 
@@ -316,7 +335,7 @@ HTML_TEMPLATE = """
         }
 
         function verileriTazele() {
-            setupDropdown('f-musteri', db.musteriler, 'Müşteri Seçin...', 'filtre-musteri', 'Tüm Firmalar');
+            setupDropdown('f-musteri', db.musteriler, 'Müşteri Seçin...', 'filtre-musteri', 'Tüm Müşteriler');
             setupDropdown('f-urun', db.urunler, 'Ürün Seçin...', 'filtre-urun', 'Tüm Ürünler');
             setupDropdown('f-statu', db.statuler, null, 'filtre-statu', 'Tüm Statüler');
 
@@ -393,7 +412,7 @@ HTML_TEMPLATE = """
             document.getElementById('m-kazanilan').innerText = paraFormat(kazanilanToplam);
             document.getElementById('m-tahmin').innerText = paraFormat(agirlikliTahmin);
 
-            // Hedef Paneli Hesaplama Motoru
+            // Birebir Excel Hedef Göstergeleri Formülleri
             const yillikHedef = 5000000;
             const kalanHedef = yillikHedef - kazanilanToplam;
             const gerceklesmeOrani = ((kazanilanToplam / yillikHedef) * 100).toFixed(1);
