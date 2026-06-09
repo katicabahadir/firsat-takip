@@ -448,4 +448,46 @@ HTML_TEMPLATE = """
                 myChart.data.labels = etiketler; myChart.data.datasets[0].data = degerler; myChart.update();
             } else {
                 myChart = new Chart(ctx, {
-                    type:
+                    type: 'doughnut',
+                    data: { labels: etiketler, datasets: [{ data: degerler, backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#6b7280'], borderWidth: 1 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }
+                });
+            }
+        }
+
+        function dinamikEkle(key, inputId) {
+            const input = document.getElementById(inputId); const deger = input.value.trim(); if(!deger) return;
+            const yeniId = db[key].length > 0 ? Math.max(...db[key].map(o => o.id)) + 1 : 1;
+            db[key].push({id: yeniId, ad: deger}); input.value = ''; dbKaydet();
+        }
+
+        function dinamikSil(key, id) {
+            if(confirm('Bu tanımı silmek istediğinize emin misiniz?')) { db[key] = db[key].filter(item => item.id != id); dbKaydet(); }
+        }
+
+        document.getElementById('firsatForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const yeniFirsat = {
+                musteri_id: document.getElementById('f-musteri').value,
+                urun_id: document.getElementById('f-urun').value,
+                beklenen_gelir: document.getElementById('f-gelir').value,
+                olasilik: document.getElementById('f-olasilik').value,
+                statu_id: document.getElementById('f-statu').value,
+                tarih: document.getElementById('f-tarih').value
+            };
+            db.firsatlar.push(yeniFirsat); document.getElementById('f-gelir').value = '0'; document.getElementById('f-olasilik').value = '50'; dbKaydet();
+        });
+
+        window.firsatSil = function(index) {
+            if(confirm('Bu kaydı havuzdan silmek istediğinize emin misiniz?')) { db.firsatlar.splice(index, 1); dbKaydet(); }
+        }
+
+        verileriTazele();
+    </script>
+</body>
+</html>
+"""
+
+@app.route('/')
+def ana_sayfa():
+    return render_template_string(HTML_TEMPLATE)
