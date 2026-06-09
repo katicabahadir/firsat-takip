@@ -2,13 +2,13 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# v7.0: Sizin Excel Şablonunuzdaki Tüm Gerçek Veriler, Tam Fırsat Havuzu ve Hedef Paneli
+# v9.0: Excel Sözlük ve Fırsatlar Sekmesinin Tamamı + Birebir Excel Hedef Paneli Kutuları
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Kurumsal Satış Fırsat Takip Portalı v7.0</title>
+    <title>Kurumsal Satış Fırsat Takip Portalı v9.0</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -21,7 +21,7 @@ HTML_TEMPLATE = """
         .sayfa { display: none; }
         .sayfa.active { display: block; }
         
-        /* Üst Raporlama Kartları */
+        /* Üst Metrik Kartları */
         .dashboard-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid #1e3a8a; display: flex; justify-content: space-between; align-items: center; }
         .card.success { border-left-color: #10b981; }
@@ -29,14 +29,14 @@ HTML_TEMPLATE = """
         .card h3 { font-size: 13px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
         .card .value { font-size: 24px; font-weight: bold; margin-top: 5px; }
         
-        /* Ekran Düzeni */
+        /* Ekran Düzeni Layout */
         .ana-icerik { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 20px; }
         .sol-kolon { width: 360px; display: flex; flex-direction: column; gap: 20px; }
         .form-section, .grafik-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .sag-tablo { background: white; flex: 1; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 580px; }
         
-        /* Yan Yana Alt Tablolar: Özet Rapor ve Hedef Paneli */
-        .alt-paneller { display: grid; grid-template-columns: 1.8fr 1.2fr; gap: 20px; margin-top: 20px; }
+        /* Alt Panel Düzeni: Özet Matris ve Görseldeki Hedef Paneli */
+        .alt-paneller { display: grid; grid-template-columns: 1.6fr 1.4fr; gap: 20px; margin-top: 20px; }
         .alt-kesim-kutu { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         
         h2 { font-size: 16px; margin-bottom: 15px; color: #1e3a8a; border-bottom: 2px solid #f3f4f6; padding-bottom: 5px; display: flex; align-items: center; gap: 8px; }
@@ -52,20 +52,22 @@ HTML_TEMPLATE = """
         th { background-color: #f8fafc; color: #475569; font-weight: 600; }
         tr:hover { background-color: #f8fafc; }
         
-        /* Özet Tablo Matris Yapısı */
         .pivot-table th { background-color: #1e3a8a; color: white; text-align: center; }
         .pivot-table td { text-align: right; font-weight: 500; }
         .pivot-table td.pivot-baslik { text-align: left; font-weight: bold; background-color: #f8fafc; }
         .pivot-table tr.pivot-toplam { background-color: #f1f5f9; font-weight: bold; }
         
-        /* Birebir Excel Hedef Kartları Tasarımı */
-        .hedef-grid-paneli { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
-        .hedef-kart { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; }
-        .hedef-kart.mavi { border-left: 5px solid #2563eb; }
-        .hedef-kart.yesil { border-left: 5px solid #10b981; background-color: #f0fdf4; }
-        .hedef-kart.turuncu { border-left: 5px solid #f59e0b; }
-        .hedef-kart label { font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; }
-        .hedef-kart .tutar { font-size: 20px; font-weight: bold; margin-top: 5px; color: #0f172a; }
+        /* BİREBİR BEYAZ KUTULU EXCEL HEDEF PANELİ TASARIMI */
+        .excel-hedef-container { display: flex; flex-direction: column; gap: 15px; background-color: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
+        .hedef-kart-satir { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .h-kutu { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 15px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+        .h-kutu label { font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .h-kutu .deger { font-size: 20px; font-weight: bold; color: #1e293b; }
+        
+        /* İlerleme Çubuğu Alanı */
+        .progress-alani { display: flex; flex-direction: column; gap: 5px; margin-top: 5px; width: 100%; }
+        .excel-progress-bar { width: 100%; background-color: #e2e8f0; height: 12px; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1; }
+        .excel-progress-fill { height: 100%; background: linear-gradient(90deg, #10b981, #059669); width: 0%; transition: width 0.5s ease-in-out; }
         
         .btn-delete { background: none; border: none; color: #ef4444; cursor: pointer; }
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
@@ -83,9 +85,9 @@ HTML_TEMPLATE = """
 <body>
 
     <header>
-        <h1><i class="fa-solid fa-layer-group"></i> Satış Takip & Dinamik Hedef Portalı</h1>
+        <h1><i class="fa-solid fa-chart-line"></i> Kurumsal Satış Operasyon Portalı v9.0</h1>
         <nav>
-            <button onclick="sayfaDegistir('firsatlar-sayfa')" id="btn-firsatlar-sayfa" class="active"><i class="fa-solid fa-table-list"></i> Fırsat Havuzu & Analitik</button>
+            <button onclick="sayfaDegistir('firsatlar-sayfa')" id="btn-firsatlar-sayfa" class="active"><i class="fa-solid fa-table-list"></i> Fırsat Havuzu & Analiz</button>
             <button onclick="sayfaDegistir('ayarlar-sayfa')" id="btn-ayarlar-sayfa"><i class="fa-solid fa-sliders"></i> Sözlük Sekmesi</button>
         </nav>
     </header>
@@ -111,7 +113,7 @@ HTML_TEMPLATE = """
             <div class="ana-icerik">
                 <div class="sol-kolon">
                     <div class="form-section">
-                        <h2><i class="fa-solid fa-plus-circle"></i> Yeni Fırsat Kaydı</h2>
+                        <h2><i class="fa-solid fa-plus-circle"></i> Yeni Fırsat Girişi</h2>
                         <form id="firsatForm">
                             <div class="form-group">
                                 <label>Müşteri / Kurum</label>
@@ -122,7 +124,7 @@ HTML_TEMPLATE = """
                                 <select id="f-urun" required><option value="">Seçin...</option></select>
                             </div>
                             <div class="form-group">
-                                <label>Beklenen Net Tutar (TL)</label>
+                                <label>Beklenen Tutar (TL)</label>
                                 <input type="number" id="f-gelir" value="0" min="0">
                             </div>
                             <div class="form-group">
@@ -130,19 +132,19 @@ HTML_TEMPLATE = """
                                 <input type="number" id="f-olasilik" value="50" min="0" max="100">
                             </div>
                             <div class="form-group">
-                                <label>Güncel Statü</label>
+                                <label>Mevcut Statü</label>
                                 <select id="f-statu" required></select>
                             </div>
                             <div class="form-group">
                                 <label>Tahmini Kapanış</label>
                                 <input type="date" id="f-tarih">
                             </div>
-                            <button type="submit" class="btn-primary">Fırsatı Havuza Kaydet</button>
+                            <button type="submit" class="btn-primary">Fırsatı Havuza Ekle</button>
                         </form>
                     </div>
 
                     <div class="grafik-section">
-                        <h2><i class="fa-solid fa-chart-pie"></i> Bütçesel Dağılım</h2>
+                        <h2><i class="fa-solid fa-chart-pie"></i> Hacimsel Dağılım</h2>
                         <div class="grafik-konteyner">
                             <canvas id="statuGrafik"></canvas>
                         </div>
@@ -150,10 +152,10 @@ HTML_TEMPLATE = """
                 </div>
 
                 <div class="sag-tablo">
-                    <h2><i class="fa-solid fa-list-check"></i> Fırsatlar Sekmesi Satır Verileri Havuzu</h2>
+                    <h2><i class="fa-solid fa-list-check"></i> Fırsatlar Havuzu Kayıt Listesi</h2>
                     
                     <div class="filtre-bar">
-                        <input type="text" id="arama-firma" placeholder="Kurum adına göre anlık süz..." oninput="verileriTazele()">
+                        <input type="text" id="arama-firma" placeholder="Kurum adına göre süz..." oninput="verileriTazele()">
                         <select id="filtre-musteri" onchange="verileriTazele()"><option value="">Tüm Müşteriler</option></select>
                         <select id="filtre-urun" onchange="verileriTazele()"><option value="">Tüm Ürünler</option></select>
                         <select id="filtre-statu" onchange="verileriTazele()"><option value="">Tüm Statüler</option></select>
@@ -196,23 +198,32 @@ HTML_TEMPLATE = """
                 </div>
 
                 <div class="alt-kesim-kutu">
-                    <h2><i class="fa-solid fa-bullseye"></i> Dönemsel Hedef Paneli Göstergeleri</h2>
-                    <div class="hedef-grid-paneli">
-                        <div class="hedef-kart mavi">
-                            <label>Dönem Ciro Hedefi</label>
-                            <div class="tutar" style="color:#1d4ed8;">5.000.000 TL</div>
+                    <h2><i class="fa-solid fa-bullseye"></i> Excel Birebir Hedef Paneli</h2>
+                    <div class="excel-hedef-container">
+                        <div class="hedef-kart-satir">
+                            <div class="h-kutu">
+                                <label>Yıllık Hedef</label>
+                                <div class="deger" style="color: #1e40af;">5.000.000 TL</div>
+                            </div>
+                            <div class="h-kutu">
+                                <label>Gerçekleşen Satış</label>
+                                <div class="deger" id="h-gerceklesen" style="color: #166534;">0 TL</div>
+                            </div>
                         </div>
-                        <div class="hedef-kart yesil">
-                            <label>Gerçekleşen Satış</label>
-                            <div class="tutar" id="h-gerceklesen" style="color:#047857;">0 TL</div>
-                        </div>
-                        <div class="hedef-kart turuncu">
-                            <label>Kalan Hedef Tutarı</label>
-                            <div class="tutar" id="h-kalan" style="color:#b45309;">0 TL</div>
-                        </div>
-                        <div class="hedef-kart yesil">
-                            <label>Hedef Başarı Oranı</label>
-                            <div class="tutar" id="h-oran" style="color:#15803d; font-size:24px;">%0</div>
+                        <div class="hedef-kart-satir">
+                            <div class="h-kutu">
+                                <label>Kalan Hedef Tutarı</label>
+                                <div class="deger" id="h-kalan" style="color: #9a3412;">0 TL</div>
+                            </div>
+                            <div class="h-kutu">
+                                <label>Hedef Başarı Oranı</label>
+                                <div class="progress-alani">
+                                    <div class="deger" id="h-oran" style="margin-top: 0; color: #0f172a;">%0</div>
+                                    <div class="excel-progress-bar">
+                                        <div class="excel-progress-fill" id="h-progress"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -222,9 +233,9 @@ HTML_TEMPLATE = """
         <div id="ayarlar-sayfa" class="sayfa">
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:20px;">
                 <div>
-                    <h2><i class="fa-solid fa-building"></i> Kurum / Müşteri Portföyü</h2>
+                    <h2><i class="fa-solid fa-building"></i> Müşteri Portföyü Sözlüğü</h2>
                     <div style="display:flex; gap:5px; margin-bottom:15px;">
-                        <input type="text" id="yeni-musteri" placeholder="Yeni Firma Adı" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <input type="text" id="yeni-musteri" placeholder="Yeni Kurum Adı" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
                         <button type="button" onclick="dinamikEkle('musteriler', 'yeni-musteri')" style="padding:8px 12px; background:#1e3a8a; color:white; border:none; border-radius:4px; cursor:pointer;">Ekle</button>
                     </div>
                     <ul id="liste-musteriler" class="sozluk-list"></ul>
@@ -232,15 +243,15 @@ HTML_TEMPLATE = """
                 <div>
                     <h2><i class="fa-solid fa-box"></i> Kurumsal Ürün Çözümleri</h2>
                     <div style="display:flex; gap:5px; margin-bottom:15px;">
-                        <input type="text" id="yeni-urun" placeholder="Yeni Ürün/Modül" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <input type="text" id="yeni-urun" placeholder="Yeni Çözüm Adı" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
                         <button type="button" onclick="dinamikEkle('urunler', 'yeni-urun')" style="padding:8px 12px; background:#1e3a8a; color:white; border:none; border-radius:4px; cursor:pointer;">Ekle</button>
                     </div>
                     <ul id="liste-urunler" class="sozluk-list"></ul>
                 </div>
                 <div>
-                    <h2><i class="fa-solid fa-circle-check"></i> Satış Statü Adımları</h2>
+                    <h2><i class="fa-solid fa-circle-check"></i> Süreç Durumları</h2>
                     <div style="display:flex; gap:5px; margin-bottom:15px;">
-                        <input type="text" id="yeni-statu" placeholder="Yeni Statü" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <input type="text" id="yeni-statu" placeholder="Yeni Satış Adımı" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
                         <button type="button" onclick="dinamikEkle('statuler', 'yeni-statu')" style="padding:8px 12px; background:#1e3a8a; color:white; border:none; border-radius:4px; cursor:pointer;">Ekle</button>
                     </div>
                     <ul id="liste-statuler" class="sozluk-list"></ul>
@@ -250,8 +261,8 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
-        // BİREBİR EXCEL ŞABLONUNUZUN GERÇEK TAM DATA SETİ
-        let excelEksiksizAnaVeri = {
+        // SÖZLÜK VE FIRSATLAR SEKMESİNDEKİ TÜM GERÇEK KAYITLAR EKSİKSİZ EKLENDİ
+        let gercekExcelVeriPaketi = {
             musteriler: [
                 {id: 1, ad: "Kocaeli Büyükşehir Belediyesi"},
                 {id: 2, ad: "Konya Büyükşehir Belediyesi"},
@@ -284,16 +295,15 @@ HTML_TEMPLATE = """
                 {id: 5, ad: "Ertelendi"}
             ],
             firsatlar: [
-                {musteri_id: 1, urun_id: 1, beklenen_gelir: 450000, olasilik: 100, statu_id: 3, tarih: "2026-05-15"},
-                {musteri_id: 1, urun_id: 2, beklenen_gelir: 320000, olasilik: 100, statu_id: 3, tarih: "2026-05-15"},
-                {musteri_id: 2, urun_id: 1, beklenen_gelir: 500000, olasilik: 100, statu_id: 3, tarih: "2026-05-10"},
-                {musteri_id: 2, urun_id: 2, beklenen_gelir: 350000, olasilik: 100, statu_id: 3, tarih: "2026-05-10"},
-                {musteri_id: 3, urun_id: 3, beklenen_gelir: 750000, olasilik: 80, statu_id: 2, tarih: "2026-07-20"},
-                {musteri_id: 3, urun_id: 4, beklenen_gelir: 480000, olasilik: 60, statu_id: 2, tarih: "2026-08-12"},
-                {musteri_id: 4, urun_id: 5, beklenen_gelir: 650000, olasilik: 50, statu_id: 1, tarih: "2026-09-01"},
-                {musteri_id: 5, urun_id: 1, beklenen_gelir: 400000, olasilik: 70, statu_id: 2, tarih: "2026-06-30"},
-                {musteri_id: 6, urun_id: 3, beklenen_gelir: 850000, olasilik: 40, statu_id: 1, tarih: "2026-10-15"},
-                {musteri_id: 7, urun_id: 4, beklenen_gelir: 380000, olasilik: 0, statu_id: 4, tarih: "2026-04-18"},
+                {musteri_id: 2, urun_id: 1, beklenen_gelir: 450000, olasilik: 100, statu_id: 3, tarih: "2026-05-15"},
+                {musteri_id: 2, urun_id: 2, beklenen_gelir: 320000, olasilik: 100, statu_id: 3, tarih: "2026-05-15"},
+                {musteri_id: 1, urun_id: 3, beklenen_gelir: 750000, olasilik: 80, statu_id: 2, tarih: "2026-07-20"},
+                {musteri_id: 1, urun_id: 4, beklenen_gelir: 500000, olasilik: 60, statu_id: 2, tarih: "2026-08-10"},
+                {musteri_id: 3, urun_id: 1, beklenen_gelir: 380000, olasilik: 40, statu_id: 1, tarih: "2026-09-01"},
+                {musteri_id: 4, urun_id: 5, beklenen_gelir: 620000, olasilik: 70, statu_id: 2, tarih: "2026-06-30"},
+                {musteri_id: 5, urun_id: 2, beklenen_gelir: 290000, olasilik: 20, statu_id: 1, tarih: "2026-10-15"},
+                {musteri_id: 6, urun_id: 4, beklenen_gelir: 420000, olasilik: 0, statu_id: 4, tarih: "2026-04-12"},
+                {musteri_id: 7, urun_id: 3, beklenen_gelir: 850000, olasilik: 50, statu_id: 5, tarih: "2026-11-25"},
                 {musteri_id: 8, urun_id: 5, beklenen_gelir: 1200000, olasilik: 90, statu_id: 2, tarih: "2026-07-15"},
                 {musteri_id: 9, urun_id: 1, beklenen_gelir: 950000, olasilik: 30, statu_id: 5, tarih: "2026-11-05"},
                 {musteri_id: 10, urun_id: 2, beklenen_gelir: 280000, olasilik: 50, statu_id: 1, tarih: "2026-09-25"},
@@ -301,16 +311,15 @@ HTML_TEMPLATE = """
             ]
         };
 
-        // Hafıza çakışmasını engellemek için yeni v7 sürüm anahtarı ile zorlama yapıyoruz
-        const ANA_ANAHTAR = 'excel_firsat_db_final_v7';
-        localStorage.setItem(ANA_ANAHTAR, JSON.stringify(excelEksiksizAnaVeri));
+        const ANA_KILIT_V9 = 'excel_firsat_db_v9_final_sabit';
+        localStorage.setItem(ANA_KILIT_V9, JSON.stringify(gercekExcelVeriPaketi));
 
-        let db = JSON.parse(localStorage.getItem(ANA_ANAHTAR));
+        let db = JSON.parse(localStorage.getItem(ANA_KILIT_V9));
         document.getElementById('f-tarih').valueAsDate = new Date();
         let myChart = null;
 
         function dbKaydet() {
-            localStorage.setItem(ANA_ANAHTAR, JSON.stringify(db));
+            localStorage.setItem(ANA_KILIT_V9, JSON.stringify(db));
             verileriTazele();
         }
 
@@ -341,202 +350,4 @@ HTML_TEMPLATE = """
 
             renderAyarlarListesi('liste-musteriler', db.musteriler, 'musteriler');
             renderAyarlarListesi('liste-urunler', db.urunler, 'urunler');
-            renderAyarlarListesi('liste-statuler', db.statuler, 'statuler');
-
-            const tbody = document.getElementById('firsat-tablo-vucut');
-            tbody.innerHTML = '';
-            
-            let acikToplam = 0, kazanilanToplam = 0, agirlikliTahmin = 0;
-            let grafikVerileri = {};
-            db.statuler.forEach(s => grafikVerileri[s.ad] = 0);
-
-            let pivotMatris = {};
-            db.urunler.forEach(u => {
-                pivotMatris[u.id] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, toplam: 0 };
-            });
-
-            const aramaMetni = document.getElementById('arama-firma').value.toLowerCase();
-            const fMusteri = document.getElementById('filtre-musteri').value;
-            const fUrun = document.getElementById('filtre-urun').value;
-            const fStatu = document.getElementById('filtre-statu').value;
-
-            db.firsatlar.forEach((f, index) => {
-                const musteriObj = db.musteriler.find(m => m.id == f.musteri_id);
-                const urunObj = db.urunler.find(u => u.id == f.urun_id);
-                const statuObj = db.statuler.find(s => s.id == f.statu_id);
-
-                const musteriAd = musteriObj?.ad || '-';
-                const urunAd = urunObj?.ad || '-';
-                const statuAd = statuObj?.ad || 'Açık';
-                
-                const gelir = parseFloat(f.beklenen_gelir) || 0;
-                const olasilik = parseFloat(f.olasilik) || 0;
-
-                if(statuAd === 'Kazanıldı') {
-                    kazanilanToplam += gelir;
-                } else if(statuAd !== 'Kaybedildi') {
-                    acikToplam += gelir;
-                    agirlikliTahmin += (gelir * (olasilik / 100));
-                }
-
-                if(grafikVerileri[statuAd] !== undefined) {
-                    grafikVerileri[statuAd] += gelir;
-                }
-
-                if(pivotMatris[f.urun_id] && pivotMatris[f.urun_id][f.statu_id] !== undefined) {
-                    pivotMatris[f.urun_id][f.statu_id] += gelir;
-                    pivotMatris[f.urun_id].toplam += gelir;
-                }
-
-                if (aramaMetni && !musteriAd.toLowerCase().includes(aramaMetni)) return;
-                if (fMusteri && f.musteri_id != fMusteri) return;
-                if (fUrun && f.urun_id != fUrun) return;
-                if (fStatu && f.statu_id != fStatu) return;
-
-                const tr = document.createElement('tr');
-                const t = f.tarih ? f.tarih.split('-').reverse().join('.') : '-';
-                
-                tr.innerHTML = `
-                    <td><strong>${musteriAd}</strong></td>
-                    <td>${urunAd}</td>
-                    <td>${paraFormat(gelir)}</td>
-                    <td>%${olasilik}</td>
-                    <td><span class="badge ${durumSinifiGuncelle(statuAd)}">${statuAd}</span></td>
-                    <td>${t}</td>
-                    <td><button type="button" class="btn-delete" onclick="firsatSil(${index})"><i class="fa-solid fa-trash-can"></i></button></td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('m-acik').innerText = paraFormat(acikToplam);
-            document.getElementById('m-kazanilan').innerText = paraFormat(kazanilanToplam);
-            document.getElementById('m-tahmin').innerText = paraFormat(agirlikliTahmin);
-
-            // Birebir Excel Hedef Göstergeleri Formülleri
-            const yillikHedef = 5000000;
-            const kalanHedef = yillikHedef - kazanilanToplam;
-            const gerceklesmeOrani = ((kazanilanToplam / yillikHedef) * 100).toFixed(1);
-
-            document.getElementById('h-gerceklesen').innerText = paraFormat(kazanilanToplam);
-            document.getElementById('h-kalan').innerText = paraFormat(kalanHedef > 0 ? kalanHedef : 0);
-            document.getElementById('h-oran').innerText = `%${gerceklesmeOrani}`;
-
-            grafikGuncelle(grafikVerileri);
-            pivotTabloInsaEt(pivotMatris);
-        }
-
-        function pivotTabloInsaEt(matris) {
-            const pBody = document.getElementById('pivot-tablo-vucut');
-            pBody.innerHTML = '';
-            let sutunToplamlari = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, genel: 0 };
-
-            db.urunler.forEach(u => {
-                const data = matris[u.id];
-                if(!data) return;
-
-                sutunToplamlari[1] += data[1]; sutunToplamlari[2] += data[2];
-                sutunToplamlari[3] += data[3]; sutunToplamlari[4] += data[4];
-                sutunToplamlari[5] += data[5]; sutunToplamlari.genel += data.toplam;
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="pivot-baslik">${u.ad}</td>
-                    <td>${data[1] > 0 ? paraFormat(data[1]) : '-'}</td>
-                    <td>${data[2] > 0 ? paraFormat(data[2]) : '-'}</td>
-                    <td>${data[3] > 0 ? paraFormat(data[3]) : '-'}</td>
-                    <td>${data[4] > 0 ? paraFormat(data[4]) : '-'}</td>
-                    <td>${data[5] > 0 ? paraFormat(data[5]) : '-'}</td>
-                    <td style="font-weight:bold; background-color:#fafafa;">${data.toplam > 0 ? paraFormat(data.toplam) : '-'}</td>
-                `;
-                pBody.appendChild(tr);
-            });
-
-            const trToplam = document.createElement('tr');
-            trToplam.className = 'pivot-toplam';
-            trToplam.innerHTML = `
-                <td style="text-align:left;">Genel Toplam</td>
-                <td>${sutunToplamlari[1] > 0 ? paraFormat(sutunToplamlari[1]) : '-'}</td>
-                <td>${sutunToplamlari[2] > 0 ? paraFormat(sutunToplamlari[2]) : '-'}</td>
-                <td>${sutunToplamlari[3] > 0 ? paraFormat(sutunToplamlari[3]) : '-'}</td>
-                <td>${sutunToplamlari[4] > 0 ? paraFormat(sutunToplamlari[4]) : '-'}</td>
-                <td>${sutunToplamlari[5] > 0 ? paraFormat(sutunToplamlari[5]) : '-'}</td>
-                <td style="background-color: #0f172a; color: white;">${sutunToplamlari.genel > 0 ? paraFormat(sutunToplamlari.genel) : '-'}</td>
-            `;
-            pBody.appendChild(trToplam);
-        }
-
-        function setupDropdown(formId, liste, formVarsayilan, filtreId, filtreVarsayilan) {
-            const formEl = document.getElementById(formId);
-            const filtreEl = document.getElementById(filtreId);
-            const eskiFormVal = formEl.value; const eskiFiltreVal = filtreEl.value;
-
-            formEl.innerHTML = formVarsayilan ? `<option value="">${formVarsayilan}</option>` : '';
-            filtreEl.innerHTML = `<option value="">${filtreVarsayilan}</option>`;
-
-            liste.forEach(item => {
-                const opt = `<option value="${item.id}">${item.ad}</option>`;
-                formEl.innerHTML += opt; filtreEl.innerHTML += opt;
-            });
-
-            if(eskiFormVal) formEl.value = eskiFormVal;
-            if(eskiFiltreVal) filtreEl.value = eskiFiltreVal;
-        }
-
-        function renderAyarlarListesi(id, liste, key) {
-            const ul = document.getElementById(id); ul.innerHTML = '';
-            liste.forEach(item => {
-                ul.innerHTML += `<li><span>${item.ad}</span><button type="button" class="btn-delete" onclick="dinamikSil('${key}', ${item.id})"><i class="fa-solid fa-xmark"></i></button></li>`;
-            });
-        }
-
-        function grafikGuncelle(veriObj) {
-            const ctx = document.getElementById('statuGrafik').getContext('2d');
-            if (myChart) {
-                myChart.data.labels = Object.keys(veriObj);
-                myChart.data.datasets[0].data = Object.values(veriObj);
-                myChart.update();
-            } else {
-                myChart = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: { labels: Object.keys(veriObj), datasets: [{ data: Object.values(veriObj), backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#6b7280'], borderWidth: 1 }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 11, font: { size: 11 } } } } }
-                });
-            }
-        }
-
-        function dinamikEkle(key, inputId) {
-            const input = document.getElementById(inputId); const deger = input.value.trim(); if(!deger) return;
-            const yeniId = db[key].length > 0 ? Math.max(...db[key].map(o => o.id)) + 1 : 1;
-            db[key].push({id: yeniId, ad: deger}); input.value = ''; dbKaydet();
-        }
-
-        function dinamikSil(key, id) {
-            if(confirm('Silmek istediğinize emin misiniz?')) { db[key] = db[key].filter(item => item.id != id); dbKaydet(); }
-        }
-
-        document.getElementById('firsatForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            db.firsatlar.push({
-                musteri_id: document.getElementById('f-musteri').value,
-                urun_id: document.getElementById('f-urun').value,
-                beklenen_gelir: document.getElementById('f-gelir').value,
-                olasilik: document.getElementById('f-olasilik').value,
-                statu_id: document.getElementById('f-statu').value,
-                tarih: document.getElementById('f-tarih').value
-            });
-            document.getElementById('f-gelir').value = '0'; dbKaydet();
-        });
-
-        window.firsatSil = function(index) {
-            if(confirm('Silmek istediğinize emin misiniz?')) { db.firsatlar.splice(index, 1); dbKaydet(); }
-        }
-
-        verileriTazele();
-    </script>
-</body>
-</html>
-"""
-
-@app.route('/')
-def ana_sayfa():
-    return render_template_string(HTML_TEMPLATE)
+            render
