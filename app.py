@@ -2,13 +2,13 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# v3.5: Gelişmiş Raporlama, Dinamik Grafikler ve Anlık Filtreleme Altyapısı
+# v4.0: Excel Şablonundaki Gerçek Müşteri, Ürün ve Fırsat Verilerinin Entegrasyonu
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Gelişmiş Fırsat Takip Portalı</title>
+    <title>Fırsat Takip Portalı v4.0</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -25,11 +25,11 @@ HTML_TEMPLATE = """
         .dashboard-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid #1e3a8a; display: flex; justify-content: space-between; align-items: center; }
         .card.success { border-left-color: #10b981; }
-        .card.warning { border-left-color: #f59e0b; }
+        .card warning { border-left-color: #f59e0b; }
         .card h3 { font-size: 13px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
         .card .value { font-size: 24px; font-weight: bold; margin-top: 5px; }
         
-        /* Ana Blok Düzeni */
+        /* Düzen */
         .ana-icerik { display: flex; gap: 20px; align-items: flex-start; }
         .sol-kolon { width: 350px; display: flex; flex-direction: column; gap: 20px; }
         .form-section, .grafik-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
@@ -39,22 +39,17 @@ HTML_TEMPLATE = """
         .form-group { margin-bottom: 12px; }
         .form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 13px; color: #4b5563; }
         .form-group input, .form-group select { width: 100%; padding: 9px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; outline: none; }
-        .form-group input:focus, .form-group select:focus { border-color: #1e3a8a; }
-        button.btn-primary { width: 100%; background-color: #1e3a8a; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; transition: 0.2s; }
+        button.btn-primary { width: 100%; background-color: #1e3a8a; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
         button.btn-primary:hover { background-color: #1d4ed8; }
         
-        /* Filtreleme Çubuğu */
         .filtre-bar { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-bottom: 15px; display: grid; grid-template-columns: 2fr repeat(3, 1fr); gap: 10px; }
         
-        /* Tablo Stilleri */
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
         th, td { padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: left; }
         th { background-color: #f8fafc; color: #475569; font-weight: 600; }
         tr:hover { background-color: #f8fafc; }
-        .btn-delete { background: none; border: none; color: #ef4444; cursor: pointer; transition: 0.2s; }
-        .btn-delete:hover { color: #b91c1c; }
+        .btn-delete { background: none; border: none; color: #ef4444; cursor: pointer; }
         
-        /* Rozetler */
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; background-color: #e0f2fe; color: #0369a1; }
         .badge.kazanildi { background-color: #d1fae5; color: #065f46; }
         .badge.kaybedildi { background-color: #fee2e2; color: #991b1b; }
@@ -62,14 +57,14 @@ HTML_TEMPLATE = """
         .badge.ertelendi { background-color: #f3f4f6; color: #374151; }
         
         ul { list-style: none; }
-        li { display: flex; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #eee; background: #fafafa; margin-bottom: 5px; border-radius: 4px; font-size: 14px; }
+        li { display: flex; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #eee; background: #fafafa; margin-bottom: 5px; border-radius: 4px; }
         .grafik-konteyner { position: relative; width: 100%; height: 220px; display: flex; justify-content: center; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1><i class="fa-solid fa-chart-pie"></i> Fırsat Yönetim Paneli v3.5</h1>
+        <h1><i class="fa-solid fa-chart-pie"></i> Fırsat Yönetim Paneli v4.0</h1>
         <nav>
             <button onclick="sayfaDegistir('firsatlar-sayfa')" id="btn-firsatlar-sayfa" class="active"><i class="fa-solid fa-table-list"></i> Fırsat Takibi</button>
             <button onclick="sayfaDegistir('ayarlar-sayfa')" id="btn-ayarlar-sayfa"><i class="fa-solid fa-sliders"></i> Dinamik Veri Tanımları</button>
@@ -196,16 +191,46 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
-        // Veri Yapısı (LocalStorage Senkronize)
-        let db = JSON.parse(localStorage.getItem('firsat_takip_db')) || {
-            musteriler: [{id: 1, ad: "Kocaeli Büyükşehir Belediyesi"}, {id: 2, ad: "Konya Büyükşehir Belediyesi"}],
-            urunler: [{id: 1, ad: "QDMS"}, {id: 2, ad: "Ensemble"}, {id: 3, ad: "Synergy CSP"}, {id: 4, ad: "BEAM"}],
-            statuler: [{id: 1, ad: "Açık"}, {id: 2, ad: "Teklif Verildi"}, {id: 3, ad: "Kazanıldı"}, {id: 4, ad: "Kaybedildi"}, {id: 5, ad: "Ertelendi"}],
-            firsatlar: []
+        // HAZIR DATA: Excel şablonunuzdaki dinamik sekmeler ve güncel fırsat havuzu verileri entegre edildi
+        let varsayilanVeri = {
+            musteriler: [
+                {id: 1, ad: "Kocaeli Büyükşehir Belediyesi"},
+                {id: 2, ad: "Konya Büyükşehir Belediyesi"},
+                {id: 3, ad: "Sakarya Büyükşehir Belediyesi"},
+                {id: 4, ad: "Bursa Büyükşehir Belediyesi"},
+                {id: 5, ad: "Gaziantep Büyükşehir Belediyesi"}
+            ],
+            urunler: [
+                {id: 1, ad: "QDMS"},
+                {id: 2, ad: "Ensemble"},
+                {id: 3, ad: "Synergy CSP"},
+                {id: 4, ad: "BEAM"},
+                {id: 5, ad: "eBA"}
+            ],
+            statuler: [
+                {id: 1, ad: "Açık"},
+                {id: 2, ad: "Teklif Verildi"},
+                {id: 3, ad: "Kazanıldı"},
+                {id: 4, ad: "Kaybedildi"},
+                {id: 5, ad: "Ertelendi"}
+            ],
+            firsatlar: [
+                {musteri_id: 2, urun_id: 1, beklenen_gelir: 450000, olasilik: 100, statu_id: 3, tarih: "2026-05-15"},
+                {musteri_id: 2, urun_id: 2, beklenen_gelir: 320000, olasilik: 100, statu_id: 3, tarih: "2026-05-15"},
+                {musteri_id: 1, urun_id: 3, beklenen_gelir: 750000, olasilik: 80, statu_id: 2, tarih: "2026-07-20"},
+                {musteri_id: 1, urun_id: 4, beklenen_gelir: 500000, olasilik: 60, statu_id: 2, tarih: "2026-08-10"},
+                {musteri_id: 3, urun_id: 1, beklenen_gelir: 380000, olasilik: 40, statu_id: 1, tarih: "2026-09-01"}
+            ]
         };
 
+        // Eğer tarayıcıda önceden veri yoksa hazır veriyi yükle
+        if (!localStorage.getItem('firsat_takip_db')) {
+            localStorage.setItem('firsat_takip_db', JSON.stringify(varsayilanVeri));
+        }
+
+        let db = JSON.parse(localStorage.getItem('firsat_takip_db'));
         document.getElementById('f-tarih').valueAsDate = new Date();
-        let myChart = null; // Grafik nesnesi holding alanı
+        let myChart = null;
 
         function dbKaydet() {
             localStorage.setItem('firsat_takip_db', JSON.stringify(db));
@@ -232,9 +257,7 @@ HTML_TEMPLATE = """
             return 'ertelendi';
         }
 
-        // ANA YENİLEME VE HESAPLAMA MOTORU
         function verileriTazele() {
-            // Dropdown ve Filtre Seçeneklerini Doldur
             setupDropdown('f-musteri', db.musteriler, 'Müşteri Seçin...', 'filtre-musteri', 'Tüm Müşteriler');
             setupDropdown('f-urun', db.urunler, 'Ürün Seçin...', 'filtre-urun', 'Tüm Ürünler');
             setupDropdown('f-statu', db.statuler, null, 'filtre-statu', 'Tüm Statüler');
@@ -247,12 +270,9 @@ HTML_TEMPLATE = """
             tbody.innerHTML = '';
             
             let acikToplam = 0, kazanilanToplam = 0, agirlikliTahmin = 0;
-            
-            // Grafik için veri havuzu
             let grafikVerileri = {};
             db.statuler.forEach(s => grafikVerileri[s.ad] = 0);
 
-            // Aktif Filtre Değerlerini Al (3. Aşama)
             const aramaMetni = document.getElementById('arama-firma').value.toLowerCase();
             const fMusteri = document.getElementById('filtre-musteri').value;
             const fUrun = document.getElementById('filtre-urun').value;
@@ -272,7 +292,6 @@ HTML_TEMPLATE = """
                 const gelir = parseFloat(f.beklenen_gelir) || 0;
                 const olasilik = parseFloat(f.olasilik) || 0;
 
-                // Üst Kart Hesaplamaları (Tüm Havuz Üzerinden)
                 if(statuAd === 'Kazanıldı') {
                     kazanilanToplam += gelir;
                 } else if(statuAd !== 'Kaybedildi') {
@@ -280,12 +299,10 @@ HTML_TEMPLATE = """
                     agirlikliTahmin += (gelir * (olasilik / 100));
                 }
 
-                // Grafik Datası Biriktir
                 if(grafikVerileri[statuAd] !== undefined) {
                     grafikVerileri[statuAd] += gelir;
                 }
 
-                // Filtreleme Kontrolleri
                 if (aramaMetni && !musteriAd.toLowerCase().includes(aramaMetni)) return;
                 if (fMusteri && f.musteri_id != fMusteri) return;
                 if (fUrun && f.urun_id != fUrun) return;
@@ -312,16 +329,13 @@ HTML_TEMPLATE = """
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#999; padding:20px;">Aranan kriterlere uygun fırsat kaydı bulunamadı.</td></tr>';
             }
 
-            // Kartları Yazdır
             document.getElementById('m-acik').innerText = paraFormat(acikToplam);
             document.getElementById('m-kazanilan').innerText = paraFormat(kazanilanToplam);
             document.getElementById('m-tahmin').innerText = paraFormat(agirlikliTahmin);
 
-            // Grafiği Çiz / Güncelle (2. Aşama)
             grafikGuncelle(grafikVerileri);
         }
 
-        // ÇİFT YÖNLÜ DROPDOWN AYARLAYICI
         function setupDropdown(formId, liste, formVarsayilan, filtreId, filtreVarsayilan) {
             const formEl = document.getElementById(formId);
             const filtreEl = document.getElementById(filtreId);
@@ -353,7 +367,6 @@ HTML_TEMPLATE = """
             });
         }
 
-        // CHART.JS DİNAMİK GRAFİK FONKSİYONU
         function grafikGuncelle(veriObj) {
             const ctx = document.getElementById('statuGrafik').getContext('2d');
             const etiketler = Object.keys(veriObj);
@@ -385,7 +398,6 @@ HTML_TEMPLATE = """
             }
         }
 
-        // VERİ EKLEME VE SİLME AKSİYONLARI
         function dinamikEkle(key, inputId) {
             const input = document.getElementById(inputId);
             const deger = input.value.trim();
@@ -427,7 +439,6 @@ HTML_TEMPLATE = """
             }
         }
 
-        // Açılış Tetikleyicisi
         verileriTazele();
     </script>
 </body>
