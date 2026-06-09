@@ -565,4 +565,98 @@ HTML_TEMPLATE = """
             });
 
             const trToplam = document.createElement('tr');
-            trToplam.
+            trToplam.className = 'pivot-toplam';
+            trToplam.innerHTML = `
+                <td style="text-align:left;">Genel Toplam</td>
+                <td>${sutunToplamlari[1] > 0 ? paraFormat(sutunToplamlari[1]) : '-'}</td>
+                <td>${sutunToplamlari[2] > 0 ? paraFormat(sutunToplamlari[2]) : '-'}</td>
+                <td>${sutunToplamlari[3] > 0 ? paraFormat(sutunToplamlari[3]) : '-'}</td>
+                <td>${sutunToplamlari[4] > 0 ? paraFormat(sutunToplamlari[4]) : '-'}</td>
+                <td>${sutunToplamlari[5] > 0 ? paraFormat(sutunToplamlari[5]) : '-'}</td>
+                <td style="background-color: #0f172a; color: white;">${sutunToplamlari.genel > 0 ? paraFormat(sutunToplamlari.genel) : '-'}</td>
+            `;
+            pBody.appendChild(trToplam);
+        }
+
+        function setupDropdown(formId, liste, formVarsayilan, filtreId, filtreVarsayilan) {
+            const formEl = document.getElementById(formId);
+            const filtreEl = document.getElementById(filtreId);
+            if(!formEl || !filtreEl) return;
+            const eskiFormVal = formEl.value; const eskiFiltreVal = filtreEl.value;
+
+            formEl.innerHTML = formVarsayilan ? `<option value="">${formVarsayilan}</option>` : '';
+            filtreEl.innerHTML = `<option value="">${filtreVarsayilan}</option>`;
+
+            liste.forEach(function(item) {
+                const opt = `<option value="${item.id}">${item.ad}</option>`;
+                formEl.innerHTML += opt; filtreEl.innerHTML += opt;
+            });
+
+            if(eskiFormVal) formEl.value = eskiFormVal;
+            if(eskiFiltreVal) filtreEl.value = eskiFiltreVal;
+        }
+
+        function renderAyarlarListesi(id, liste, key) {
+            const ul = document.getElementById(id); if(!ul) return;
+            ul.innerHTML = '';
+            liste.forEach(function(item) {
+                ul.innerHTML += `<li><span>${item.ad}</span><button type="button" class="btn-delete" onclick="dinamikSil('${key}', ${item.id})"><i class="fa-solid fa-xmark"></i></button></li>`;
+            });
+        }
+
+        function grafikGuncelle(veriObj) {
+            const canvas = document.getElementById('statuGrafik');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (myChart) {
+                myChart.data.labels = Object.keys(veriObj);
+                myChart.data.datasets[0].data = Object.values(veriObj);
+                myChart.update();
+            } else {
+                myChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: { labels: Object.keys(veriObj), datasets: [{ data: Object.values(veriObj), backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#6b7280'], borderWidth: 1 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 11, font: { size: 11 } } } } }
+                });
+            }
+        }
+
+        function dinamikEkle(key, inputId) {
+            const input = document.getElementById(inputId); const deger = input.value.trim(); if(!deger) return;
+            const yeniId = db[key].length > 0 ? Math.max(...db[key].map(function(o) { return o.id; })) + 1 : 1;
+            db[key].push({id: yeniId, ad: deger}); input.value = ''; dbKaydet();
+        }
+
+        function dinamikSil(key, id) {
+            if(confirm('Silmek istediğinize emin misiniz?')) { db[key] = db[key].filter(function(item) { return item.id != id; }); dbKaydet(); }
+        }
+
+        if(document.getElementById('firsatForm')) {
+            document.getElementById('firsatForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                db.firsatlar.push({
+                    musteri_id: document.getElementById('f-musteri').value,
+                    urun_id: document.getElementById('f-urun').value,
+                    statu_id: document.getElementById('f-statu').value,
+                    olasilik: document.getElementById('f-olasilik').value,
+                    tahmini_tutar: document.getElementById('f-tahmini-tutar').value,
+                    beklenen_gelir: document.getElementById('f-gelir').value,
+                    tarih: document.getElementById('f-tarih').value
+                });
+                document.getElementById('f-gelir').value = '0';
+                document.getElementById('f-tahmini-tutar').value = '0';
+                dbKaydet();
+            });
+        }
+
+        window.firsatSil = function(index) {
+            if(confirm('Silmek istediğinize emin misiniz?')) { db.firsatlar.splice(index, 1); dbKaydet(); }
+        }
+    </script>
+</body>
+</html>
+"""
+
+@app.route('/')
+def ana_sayfa():
+    return render_template_string(HTML_TEMPLATE)
