@@ -138,4 +138,224 @@ HTML_TEMPLATE = """
                                 <label>Kazanma Olasılığı (%)</label>
                                 <input type="number" id="f-olasilik" value="50" min="0" max="100">
                             </div>
-                            <div class
+                            <div class="form-group">
+                                <label>Mevcut Statü</label>
+                                <select id="f-statu" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Tahmini Kapanış</label>
+                                <input type="date" id="f-tarih">
+                            </div>
+                            <button type="submit" class="btn-primary">Fırsatı Havuza Ekle</button>
+                        </form>
+                    </div>
+
+                    <div class="grafik-section">
+                        <h2><i class="fa-solid fa-chart-pie"></i> Hacimsel Dağılım</h2>
+                        <div class="grafik-konteyner">
+                            <canvas id="statuGrafik"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sag-tablo">
+                    <h2>
+                        <span><i class="fa-solid fa-list-check"></i> Fırsatlar Havuzu Kayıt Listesi</span>
+                        <button class="btn-success" onclick="excelDisariAktar()"><i class="fa-solid fa-file-arrow-down"></i> Mevcut Datayı Excel Olarak İndir</button>
+                    </h2>
+                    
+                    <div class="filtre-bar">
+                        <input type="text" id="arama-firma" placeholder="Kurum adına göre süz..." oninput="verileriTazele()">
+                        <select id="filtre-musteri" onchange="verileriTazele()"><option value="">Tüm Müşteriler</option></select>
+                        <select id="filtre-urun" onchange="verileriTazele()"><option value="">Tüm Ürünler</option></select>
+                        <select id="filtre-statu" onchange="verileriTazele()"><option value="">Tüm Statüler</option></select>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Müşteri / Kurum</th>
+                                <th>Ürün / Çözüm</th>
+                                <th>Beklenen Gelir</th>
+                                <th>Olasılık</th>
+                                <th>Statü</th>
+                                <th>Kapanış Tarihi</th>
+                                <th>Aksiyon</th>
+                            </tr>
+                        </thead>
+                        <tbody id="firsat-tablo-vucut"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="alt-paneller">
+                <div class="alt-kesim-kutu">
+                    <h2><i class="fa-solid fa-table-cells"></i> Dinamik Özet Tablo (Ürün x Statü Matrisi)</h2>
+                    <table class="pivot-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left; background-color: #1e3a8a;">Ürün / Çözüm</th>
+                                <th>Açık</th>
+                                <th>Teklif Verildi</th>
+                                <th>Kazanıldı</th>
+                                <th>Kaybedildi</th>
+                                <th>Ertelendi</th>
+                                <th style="background-color: #0f172a;">Genel Toplam</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pivot-tablo-vucut"></tbody>
+                    </table>
+                </div>
+
+                <div class="alt-kesim-kutu">
+                    <h2><i class="fa-solid fa-bullseye"></i> Excel Birebir Hedef Takip Matrisi</h2>
+                    <table class="hedef-tablo">
+                        <thead>
+                            <tr>
+                                <th>YILLIK HEDEF</th>
+                                <th>GERÇEKLEŞEN SATIŞ</th>
+                                <th>KALAN HEDEF TUTARI</th>
+                                <th>HEDEF BAŞARI ORANI</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="color: #1e40af;">5.000.000 TL</td>
+                                <td id="h-gerceklesen" style="color: #166534;">0 TL</td>
+                                <td id="h-kalan" style="color: #b45309;">0 TL</td>
+                                <td>
+                                    <div class="progress-container">
+                                        <span id="h-oran" style="color: #0f172a;">%0</span>
+                                        <div class="excel-progress-bar">
+                                            <div class="excel-progress-fill" id="h-progress"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="yukleme-sayfa" class="sayfa">
+            <div class="yukleme-grid">
+                <div class="yukleme-kart">
+                    <h2><i class="fa-solid fa-building"></i> 1. Excel'den Toplu Müşteri Yükleme</h2>
+                    <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Excel'den kopyaladığınız şirket isimlerini (Her satıra bir tane gelecek şekilde) buraya yapıştırın:</p>
+                    <textarea id="excelMusteriMetin" class="excel-input" placeholder="Örn:\nBimser Çözüm\nHavelsan\nRoketsan"></textarea>
+                    <button type="button" class="btn-success" onclick="topluMusteriYukle()"><i class="fa-solid fa-upload"></i> Firmaları Sözlüğe Aktar</button>
+                </div>
+
+                <div class="yukleme-kart">
+                    <h2><i class="fa-solid fa-table"></i> 2. Excel'den Toplu Fırsat Havuzu Yükleme</h2>
+                    <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Excel'deki fırsat satırlarınızı (Müşteri, Ürün, Tutar, Olasılık, Statü, Tarih sırasıyla sekmeyle ayrılmış) yapıştırın:</p>
+                    <textarea id="excelFirsatMetin" class="excel-input" placeholder="Örn:\nBimser Çözüm\tQDMS\t150000\t80\tTeklif Verildi\t2026-06-15"></textarea>
+                    <button type="button" class="btn-success" style="background-color: #1e3a8a;" onclick="topluFirsatYukle()"><i class="fa-solid fa-layer-group"></i> Fırsat Satırlarını Havuza Yükle</button>
+                </div>
+            </div>
+            
+            <div style="margin-top:20px; text-align:right;">
+                <button type="button" style="background-color:#ef4444; color:white;" class="btn-success" onclick="hafizayiSifirla()"><i class="fa-solid fa-trash-arrow-up"></i> Tüm Veritabanını Sıfırla (Sistemi Bomboş Yap)</button>
+            </div>
+        </div>
+
+        <div id="ayarlar-sayfa" class="sayfa">
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:20px;">
+                <div>
+                    <h2><i class="fa-solid fa-building"></i> Müşteri Portföyü Sözlüğü</h2>
+                    <div style="display:flex; gap:5px; margin-bottom:15px;">
+                        <input type="text" id="yeni-musteri" placeholder="Yeni Kurum Adı" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <button type="button" onclick="dinamikEkle('musteriler', 'yeni-musteri')" style="padding:8px 12px; background:#1e3a8a; color:white; border:none; border-radius:4px; cursor:pointer;">Ekle</button>
+                    </div>
+                    <ul id="liste-musteriler" class="sozluk-list"></ul>
+                </div>
+                <div>
+                    <h2><i class="fa-solid fa-box"></i> Kurumsal Ürün Çözümleri</h2>
+                    <div style="display:flex; gap:5px; margin-bottom:15px;">
+                        <input type="text" id="yeni-urun" placeholder="Yeni Çözüm Adı" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <button type="button" onclick="dinamikEkle('urunler', 'yeni-urun')" style="padding:8px 12px; background:#1e3a8a; color:white; border:none; border-radius:4px; cursor:pointer;">Ekle</button>
+                    </div>
+                    <ul id="liste-urunler" class="sozluk-list"></ul>
+                </div>
+                <div>
+                    <h2><i class="fa-solid fa-circle-check"></i> Süreç Durumları</h2>
+                    <div style="display:flex; gap:5px; margin-bottom:15px;">
+                        <input type="text" id="yeni-statu" placeholder="Yeni Satış Adımı" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <button type="button" onclick="dinamikEkle('statuler', 'yeni-statu')" style="padding:8px 12px; background:#1e3a8a; color:white; border:none; border-radius:4px; cursor:pointer;">Ekle</button>
+                    </div>
+                    <ul id="liste-statuler" class="sozluk-list"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let bosTabloYapisi = {
+            musteriler: [],
+            urunler: [
+                {id: 1, ad: "QDMS"}, {id: 2, ad: "Ensemble"}, {id: 3, ad: "Synergy CSP"}, {id: 4, ad: "BEAM"}, {id: 5, ad: "eBA"}
+            ],
+            statuler: [
+                {id: 1, ad: "Açık"}, {id: 2, ad: "Teklif Verildi"}, {id: 3, ad: "Kazanıldı"}, {id: 4, ad: "Kaybedildi"}, {id: 5, ad: "Ertelendi"}
+            ],
+            firsatlar: []
+        };
+
+        const KEY_V14_1 = 'excel_esnek_firsat_db_v14_1';
+        if (!localStorage.getItem(KEY_V14_1)) {
+            localStorage.setItem(KEY_V14_1, JSON.stringify(bosTabloYapisi));
+        }
+
+        let db = JSON.parse(localStorage.getItem(KEY_V14_1));
+        if (document.getElementById('f-tarih')) {
+            document.getElementById('f-tarih').valueAsDate = new Date();
+        }
+        let myChart = null;
+
+        function dbKaydet() {
+            localStorage.setItem(KEY_V14_1, JSON.stringify(db));
+            verileriTazele();
+        }
+
+        function hafizayiSifirla() {
+            if(confirm('Sistemdeki tüm verileri sıfırlamak istediğinize emin misiniz?')) {
+                localStorage.setItem(KEY_V14_1, JSON.stringify(bosTabloYapisi));
+                db = JSON.parse(localStorage.getItem(KEY_V14_1));
+                dbKaydet();
+                alert('Sistem başarıyla sıfırlandı.');
+            }
+        }
+
+        function topluMusteriYukle() {
+            const metin = document.getElementById('excelMusteriMetin').value.trim();
+            if(!metin) { alert('Lütfen müşteri listesini yapıştırın.'); return; }
+            const satirlar = metin.split('\\n');
+            let sayac = 0;
+            satirlar.forEach(s => {
+                const ad = s.trim();
+                if(ad && !db.musteriler.some(m => m.ad.toLowerCase() === ad.toLowerCase())) {
+                    const yeniId = db.musteriler.length > 0 ? Math.max(...db.musteriler.map(o => o.id)) + 1 : 1;
+                    db.musteriler.push({id: yeniId, ad: ad});
+                    sayac++;
+                }
+            });
+            document.getElementById('excelMusteriMetin').value = '';
+            dbKaydet();
+            alert(sayac + ' yeni firma sözlüğe eklendi!');
+        }
+
+        function topluFirsatYukle() {
+            const metin = document.getElementById('excelFirsatMetin').value.trim();
+            if(!metin) { alert('Lütfen Excel fırsat satırlarını yapıştırın.'); return; }
+            const satirlar = metin.split('\\n');
+            let sayac = 0;
+
+            satirlar.forEach(satir => {
+                const hucreler = satir.split('\\t');
+                if(hucreler.length >= 3) {
+                    const mAd = hucreler[0].trim();
+                    const uAd = hucreler[1].trim();
+                    const gelir = parseFloat(hucreler[2].replace(/[^0-9.-]+/g,"")) || 0;
+                    const olasilik = hucreler[3] ? parseInt(hucreler[3]) : 50;
+                    const sAd = hucreler[4] ? hucreler[4].trim() :
