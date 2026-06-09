@@ -2,13 +2,13 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# v15.2: JavaScript Tarafındaki 'def' Hataları Düzeltilmiş, Stabilize Kesin Sürüm
+# v16.0: Eski Alt Tablolar Kaldırıldı, Görseldeki Birleşik Portföy & Hedef Analiz Özeti Eklendi
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Kurumsal Satış Fırsat Takip Portalı v15.2</title>
+    <title>Kurumsal Satış Fırsat Takip Portalı v16.0</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -35,9 +35,8 @@ HTML_TEMPLATE = """
         .form-section, .grafik-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .sag-tablo { background: white; flex: 1; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 580px; }
         
-        /* Alt Panel Düzeni */
-        .alt-paneller { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; margin-top: 20px; }
-        .alt-kesim-kutu { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        /* Alt Geniş Özet Panel Alanı */
+        .alt-genis-panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-top: 20px; }
         
         h2 { font-size: 16px; margin-bottom: 15px; color: #1e3a8a; border-bottom: 2px solid #f3f4f6; padding-bottom: 5px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
         .form-group { margin-bottom: 12px; }
@@ -55,18 +54,15 @@ HTML_TEMPLATE = """
         th { background-color: #f8fafc; color: #475569; font-weight: 600; }
         tr:hover { background-color: #f8fafc; }
         
-        .pivot-table th { background-color: #1e3a8a; color: white; text-align: center; }
-        .pivot-table td { text-align: right; font-weight: 500; }
-        .pivot-table td.pivot-baslik { text-align: left; font-weight: bold; background-color: #f8fafc; }
-        .pivot-table tr.pivot-toplam { background-color: #f1f5f9; font-weight: bold; }
+        /* GÖRSELDEKİ BİREBİR YENİ BİRLEŞİK ANALİZ TABLOSU STİLİ */
+        .analiz-ozet-table th { background-color: #1e3a8a; color: white; font-weight: 600; text-align: center; border: 1px solid #cbd5e1; }
+        .analiz-ozet-table td { border: 1px solid #cbd5e1; padding: 12px; text-align: right; font-weight: 500; }
+        .analiz-ozet-table td.baslik-hucre { text-align: left; font-weight: bold; background-color: #f8fafc; color: #1e293b; }
+        .analiz-ozet-table tr.toplam-satir { background-color: #f1f5f9; font-weight: bold; }
+        .analiz-ozet-table tr.toplam-satir td { font-weight: bold; color: #0f172a; }
         
-        /* Excel Birleşik Tablo Formatında Hedef Paneli */
-        .hedef-tablo { width: 100%; border-collapse: collapse; margin-top: 5px; }
-        .hedef-tablo th { background-color: #f1f5f9; color: #334155; font-weight: 700; text-align: center; border: 1px solid #cbd5e1; font-size: 13px; padding: 10px; }
-        .hedef-tablo td { border: 1px solid #cbd5e1; text-align: center; font-size: 16px; font-weight: bold; padding: 14px; background-color: #fff; }
-        
-        .progress-container { display: flex; align-items: center; gap: 10px; justify-content: center; width: 100%; }
-        .excel-progress-bar { flex: 1; max-width: 150px; background-color: #e2e8f0; height: 12px; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1; }
+        .progress-container { display: flex; align-items: center; gap: 8px; justify-content: flex-end; width: 100%; }
+        .excel-progress-bar { width: 100px; background-color: #e2e8f0; height: 10px; border-radius: 5px; overflow: hidden; border: 1px solid #cbd5e1; }
         .excel-progress-fill { height: 100%; background: linear-gradient(90deg, #10b981, #059669); width: 0%; }
         
         /* Veri Yükleme Düzeni */
@@ -192,53 +188,22 @@ HTML_TEMPLATE = """
                 </div>
             </div>
 
-            <div class="alt-paneller">
-                <div class="alt-kesim-kutu">
-                    <h2><i class="fa-solid fa-table-cells"></i> Dinamik Özet Tablo (Ürün x Statü Matrisi)</h2>
-                    <table class="pivot-table">
-                        <thead>
-                            <tr>
-                                <th style="text-align: left; background-color: #1e3a8a;">Ürün / Çözüm</th>
-                                <th>Açık</th>
-                                <th>Teklif Verildi</th>
-                                <th>Kazanıldı</th>
-                                <th>Kaybedildi</th>
-                                <th>Ertelendi</th>
-                                <th style="background-color: #0f172a;">Genel Toplam</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pivot-tablo-vucut"></tbody>
-                    </table>
-                </div>
-
-                <div class="alt-kesim-kutu">
-                    <h2><i class="fa-solid fa-bullseye"></i> Excel Birebir Hedef Takip Matrisi</h2>
-                    <table class="hedef-tablo">
-                        <thead>
-                            <tr>
-                                <th>YILLIK HEDEF</th>
-                                <th>GERÇEKLEŞEN SATIŞ</th>
-                                <th>KALAN HEDEF TUTARI</th>
-                                <th>HEDEF BAŞARI ORANI</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="color: #1e40af;">5.000.000 TL</td>
-                                <td id="h-gerceklesen" style="color: #166534;">0 TL</td>
-                                <td id="h-kalan" style="color: #b45309;">0 TL</td>
-                                <td>
-                                    <div class="progress-container">
-                                        <span id="h-oran" style="color: #0f172a;">%0</span>
-                                        <div class="excel-progress-bar">
-                                            <div class="excel-progress-fill" id="h-progress"></div>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+            <div class="alt-genis-panel">
+                <h2><i class="fa-solid fa-chart-line"></i> Ürün Bazlı Portföy ve Hedef Analiz Özeti</h2>
+                <table class="analiz-ozet-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; width: 220px;">Ürün / Çözüm</th>
+                            <th>Açık Fırsat Adedi</th>
+                            <th>Açık Fırsat Hacmi (TL)</th>
+                            <th>Kazanılan Başarılı Satış (TL)</th>
+                            <th>Yıllık Ürün Hedefi (TL)</th>
+                            <th>Kalan Hedef Tutarı (TL)</th>
+                            <th style="width: 240px;">Hedef Başarı Oranı</th>
+                        </tr>
+                    </thead>
+                    <tbody id="analiz-ozet-vucut"></tbody>
+                </table>
             </div>
         </div>
 
@@ -295,11 +260,14 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
-        // JS tarafındaki tüm fonksiyonlar 'function' olarak düzeltildi, 'def' temizlendi.
         let bosTabloYapisi = {
             musteriler: [],
             urunler: [
-                {id: 1, ad: "QDMS"}, {id: 2, ad: "Ensemble"}, {id: 3, ad: "Synergy CSP"}, {id: 4, ad: "BEAM"}, {id: 5, ad: "eBA"}
+                {id: 1, ad: "QDMS", hedef: 1500000}, 
+                {id: 2, ad: "Ensemble", hedef: 1000000}, 
+                {id: 3, ad: "Synergy CSP", hedef: 1000000}, 
+                {id: 4, ad: "BEAM", hedef: 800000}, 
+                {id: 5, ad: "eBA", hedef: 700000}
             ],
             statuler: [
                 {id: 1, ad: "Açık"}, {id: 2, ad: "Teklif Verildi"}, {id: 3, ad: "Kazanıldı"}, {id: 4, ad: "Kaybedildi"}, {id: 5, ad: "Ertelendi"}
@@ -307,12 +275,12 @@ HTML_TEMPLATE = """
             firsatlar: []
         };
 
-        const KEY_FINAL_V15_2 = 'excel_esnek_firsat_db_v15_2';
-        if (!localStorage.getItem(KEY_FINAL_V15_2)) {
-            localStorage.setItem(KEY_FINAL_V15_2, JSON.stringify(bosTabloYapisi));
+        const KEY_V16_FINAL = 'excel_esnek_firsat_db_v16';
+        if (!localStorage.getItem(KEY_V16_FINAL)) {
+            localStorage.setItem(KEY_V16_FINAL, JSON.stringify(bosTabloYapisi));
         }
 
-        let db = JSON.parse(localStorage.getItem(KEY_FINAL_V15_2));
+        let db = JSON.parse(localStorage.getItem(KEY_V16_FINAL));
         
         window.addEventListener('DOMContentLoaded', function() {
             if (document.getElementById('f-tarih')) {
@@ -324,14 +292,14 @@ HTML_TEMPLATE = """
         let myChart = null;
 
         function dbKaydet() {
-            localStorage.setItem(KEY_FINAL_V15_2, JSON.stringify(db));
+            localStorage.setItem(KEY_V16_FINAL, JSON.stringify(db));
             verileriTazele();
         }
 
         function hafizayiSifirla() {
             if(confirm('Sistemdeki tüm verileri sıfırlamak istediğinize emin misiniz?')) {
-                localStorage.setItem(KEY_FINAL_V15_2, JSON.stringify(bosTabloYapisi));
-                db = JSON.parse(localStorage.getItem(KEY_FINAL_V15_2));
+                localStorage.setItem(KEY_V16_FINAL, JSON.stringify(bosTabloYapisi));
+                db = JSON.parse(localStorage.getItem(KEY_V16_FINAL));
                 dbKaydet();
                 alert('Sistem başarıyla sıfırlandı.');
             }
@@ -383,7 +351,7 @@ HTML_TEMPLATE = """
                     let urun = db.urunler.find(u => u.ad.toLowerCase() === uAd.toLowerCase());
                     if(!urun && uAd) {
                         const yeniId = db.urunler.length > 0 ? Math.max(...db.urunler.map(o => o.id)) + 1 : 1;
-                        urun = {id: yeniId, ad: uAd};
+                        urun = {id: yeniId, ad: uAd, hedef: 1000000};
                         db.urunler.push(urun);
                     }
 
@@ -430,12 +398,8 @@ HTML_TEMPLATE = """
         function sayfaDegistir(sayfaId) {
             document.querySelectorAll('.sayfa').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-            if(document.getElementById(sayfaId)) {
-                document.getElementById(sayfaId).classList.add('active');
-            }
-            if(document.getElementById('btn-' + sayfaId)) {
-                document.getElementById('btn-' + sayfaId).classList.add('active');
-            }
+            if(document.getElementById(sayfaId)) document.getElementById(sayfaId).classList.add('active');
+            if(document.getElementById('btn-' + sayfaId)) document.getElementById('btn-' + sayfaId).classList.add('active');
             verileriTazele();
         }
 
@@ -460,9 +424,10 @@ HTML_TEMPLATE = """
             let grafikVerileri = {};
             db.statuler.forEach(s => grafikVerileri[s.ad] = 0);
 
-            let pivotMatris = {};
-            db.urunler.forEach(u => {
-                pivotMatris[u.id] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, toplam: 0 };
+            // Yeni Analiz Matrisi İçin Sayaç Yapısı
+            let urunAnalizVeri = {};
+            db.urunler.forEach(function(u) {
+                urunAnalizVeri[u.id] = { adet: 0, acikHacim: 0, kazanilan: 0, hedef: u.hedef || 1000000 };
             });
 
             const aramaMetni = document.getElementById('arama-firma') ? document.getElementById('arama-firma').value.toLowerCase() : '';
@@ -485,18 +450,19 @@ HTML_TEMPLATE = """
 
                 if(statuAd === 'Kazanıldı') {
                     kazanilanToplam += gelir;
+                    if(urunAnalizVeri[f.urun_id]) urunAnalizVeri[f.urun_id].kazanilan += gelir;
                 } else if(statuAd !== 'Kaybedildi') {
                     acikToplam += gelir;
                     agirlikliTahmin += (gelir * (olasilik / 100));
+                    
+                    if(urunAnalizVeri[f.urun_id]) {
+                        urunAnalizVeri[f.urun_id].adet += 1;
+                        urunAnalizVeri[f.urun_id].acikHacim += gelir;
+                    }
                 }
 
                 if(grafikVerileri[statuAd] !== undefined) {
                     grafikVerileri[statuAd] += gelir;
-                }
-
-                if(pivotMatris[f.urun_id] && pivotMatris[f.urun_id][f.statu_id] !== undefined) {
-                    pivotMatris[f.urun_id][f.statu_id] += gelir;
-                    pivotMatris[f.urun_id].toplam += gelir;
                 }
 
                 if (aramaMetni && !musteriAd.toLowerCase().includes(aramaMetni)) return;
@@ -524,58 +490,72 @@ HTML_TEMPLATE = """
             if(document.getElementById('m-kazanilan')) document.getElementById('m-kazanilan').innerText = paraFormat(kazanilanToplam);
             if(document.getElementById('m-tahmin')) document.getElementById('m-tahmin').innerText = paraFormat(agirlikliTahmin);
 
-            const yillikHedef = 5000000;
-            const kalanHedef = yillikHedef - kazanilanToplam;
-            const gerceklesmeOrani = ((kazanilanToplam / yillikHedef) * 100).toFixed(1);
-
-            if(document.getElementById('h-gerceklesen')) document.getElementById('h-gerceklesen').innerText = paraFormat(kazanilanToplam);
-            if(document.getElementById('h-kalan')) document.getElementById('h-kalan').innerText = paraFormat(kalanHedef > 0 ? kalanHedef : 0);
-            if(document.getElementById('h-oran')) document.getElementById('h-oran').innerText = `%${gerceklesmeOrani}`;
-            if(document.getElementById('h-progress')) document.getElementById('h-progress').style.width = `${gerceklesmeOrani > 100 ? 100 : gerceklesmeOrani}%`;
-
             grafikGuncelle(grafikVerileri);
-            pivotTabloInsaEt(pivotMatris);
+            analizTablosuInsaEt(urunAnalizVeri);
         }
 
-        function pivotTabloInsaEt(matris) {
-            const pBody = document.getElementById('pivot-tablo-vucut');
-            if(!pBody) return;
-            pBody.innerHTML = '';
-            let sutunToplamlari = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, genel: 0 };
+        // GÖRSELDEKİ ÖZET MATRİSİN DİNAMİK OLARAK OLUŞTURULMASI
+        function analizTablosuInsaEt(analizVerisi) {
+            const aBody = document.getElementById('analiz-ozet-vucut');
+            if(!aBody) return;
+            aBody.innerHTML = '';
+
+            let tAdet = 0, tAcikHacim = 0, tKazanilan = 0, tHedef = 0, tKalan = 0;
 
             db.urunler.forEach(function(u) {
-                const data = matris[u.id];
+                const data = analizVerisi[u.id];
                 if(!data) return;
 
-                sutunToplamlari[1] += data[1]; sutunToplamlari[2] += data[2];
-                sutunToplamlari[3] += data[3]; sutunToplamlari[4] += data[4];
-                sutunToplamlari[5] += data[5]; sutunToplamlari.genel += data.toplam;
+                const kalan = data.hedef - data.kazanilan;
+                const oran = ((data.kazanilan / data.hedef) * 100).toFixed(1);
+
+                tAdet += data.adet;
+                tAcikHacim += data.acikHacim;
+                tKazanilan += data.kazanilan;
+                tHedef += data.hedef;
+                tKalan += (kalan > 0 ? kalan : 0);
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="pivot-baslik">${u.ad}</td>
-                    <td>${data[1] > 0 ? paraFormat(data[1]) : '-'}</td>
-                    <td>${data[2] > 0 ? paraFormat(data[2]) : '-'}</td>
-                    <td>${data[3] > 0 ? paraFormat(data[3]) : '-'}</td>
-                    <td>${data[4] > 0 ? paraFormat(data[4]) : '-'}</td>
-                    <td>${data[5] > 0 ? paraFormat(data[5]) : '-'}</td>
-                    <td style="font-weight:bold; background-color:#fafafa;">${data.toplam > 0 ? paraFormat(data.toplam) : '-'}</td>
+                    <td class="baslik-hucre">${u.ad}</td>
+                    <td style="text-align: center;">${data.adet}</td>
+                    <td>${data.acikHacim > 0 ? paraFormat(data.acikHacim) : '-'}</td>
+                    <td style="color:#166534;">${data.kazanilan > 0 ? paraFormat(data.kazanilan) : '-'}</td>
+                    <td style="color:#1e40af;">${paraFormat(data.hedef)}</td>
+                    <td style="color:#b45309;">${kalan > 0 ? paraFormat(kalan) : 'Tamamlandı'}</td>
+                    <td>
+                        <div class="progress-container">
+                            <span>%${oran}</span>
+                            <div class="excel-progress-bar">
+                                <div class="excel-progress-fill" style="width: ${oran > 100 ? 100 : oran}%"></div>
+                            </div>
+                        </div>
+                    </td>
                 `;
-                pBody.appendChild(tr);
+                aBody.appendChild(tr);
             });
 
+            // GENEL TOPLAM SATIRI
+            const tOran = ((tKazanilan / tHedef) * 100).toFixed(1);
             const trToplam = document.createElement('tr');
-            trToplam.className = 'pivot-toplam';
+            trToplam.className = 'toplam-satir';
             trToplam.innerHTML = `
-                <td style="text-align:left;">Genel Toplam</td>
-                <td>${sutunToplamlari[1] > 0 ? paraFormat(sutunToplamlari[1]) : '-'}</td>
-                <td>${sutunToplamlari[2] > 0 ? paraFormat(sutunToplamlari[2]) : '-'}</td>
-                <td>${sutunToplamlari[3] > 0 ? paraFormat(sutunToplamlari[3]) : '-'}</td>
-                <td>${sutunToplamlari[4] > 0 ? paraFormat(sutunToplamlari[4]) : '-'}</td>
-                <td>${sutunToplamlari[5] > 0 ? paraFormat(sutunToplamlari[5]) : '-'}</td>
-                <td style="background-color: #0f172a; color: white;">${sutunToplamlari.genel > 0 ? paraFormat(sutunToplamlari.genel) : '-'}</td>
+                <td class="baslik-hucre" style="background-color:#e2e8f0;">GENEL TOPLAM</td>
+                <td style="text-align: center;">${tAdet}</td>
+                <td>${paraFormat(tAcikHacim)}</td>
+                <td style="color:#166534;">${paraFormat(tKazanilan)}</td>
+                <td style="color:#1e40af;">${paraFormat(tHedef)}</td>
+                <td style="color:#b45309;">${paraFormat(tKalan)}</td>
+                <td>
+                    <div class="progress-container">
+                        <span>%${tOran}</span>
+                        <div class="excel-progress-bar" style="background-color:#cbd5e1;">
+                            <div class="excel-progress-fill" style="width: ${tOran > 100 ? 100 : tOran}%; background: #047857;"></div>
+                        </div>
+                    </div>
+                </td>
             `;
-            pBody.appendChild(trToplam);
+            aBody.appendChild(trToplam);
         }
 
         function setupDropdown(formId, liste, formVarsayilan, filtreId, filtreVarsayilan) {
