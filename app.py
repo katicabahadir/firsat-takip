@@ -2,13 +2,13 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# v14.0: Bağımsız Veri Yükleme Sekmesi, Toplu Fırsat Girişi ve Tablosal Hedef Paneli
+# v14.1: Hatalardan Arındırılmış Temiz Altyapı, Ayrı Yükleme Sekmesi ve Tablosal Hedef Paneli
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Kurumsal Satış Fırsat Takip Portalı v14.0</title>
+    <title>Kurumsal Satış Fırsat Takip Portalı v14.1</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -61,9 +61,9 @@ HTML_TEMPLATE = """
         .pivot-table td.pivot-baslik { text-align: left; font-weight: bold; background-color: #f8fafc; }
         .pivot-table tr.pivot-toplam { background-color: #f1f5f9; font-weight: bold; }
         
-        /* DERLİ TOPLU HEDEF TABLOSU TASARIMI (GÖRSELDEKİ GİBİ BİRLEŞİK) */
+        /* BİREBİR EXCEL TABLOSU FORMATINDA DERLI TOPLU HEDEF PANELİ */
         .hedef-tablo { width: 100%; border-collapse: collapse; margin-top: 5px; }
-        .hedef-tablo th { background-color: #f1f5f9; color: #334155; font-weight: 700; text-align: center; border: 1px solid #cbd5e1; font-size: 13px; }
+        .hedef-tablo th { background-color: #f1f5f9; color: #334155; font-weight: 700; text-align: center; border: 1px solid #cbd5e1; font-size: 13px; padding: 10px; }
         .hedef-tablo td { border: 1px solid #cbd5e1; text-align: center; font-size: 16px; font-weight: bold; padding: 14px; background-color: #fff; }
         
         .progress-container { display: flex; align-items: center; gap: 10px; justify-content: center; width: 100%; }
@@ -138,115 +138,4 @@ HTML_TEMPLATE = """
                                 <label>Kazanma Olasılığı (%)</label>
                                 <input type="number" id="f-olasilik" value="50" min="0" max="100">
                             </div>
-                            <div class="form-group">
-                                <label>Mevcut Statü</label>
-                                <select id="f-statu" required></select>
-                            </div>
-                            <div class="form-group">
-                                <label>Tahmini Kapanış</label>
-                                <input type="date" id="f-tarih">
-                            </div>
-                            <button type="submit" class="btn-primary">Fırsatı Havuza Ekle</button>
-                        </form>
-                    </div>
-
-                    <div class="grafik-section">
-                        <h2><i class="fa-solid fa-chart-pie"></i> Hacimsel Dağılım</h2>
-                        <div class="grafik-konteyner">
-                            <canvas id="statuGrafik"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="sag-tablo">
-                    <h2>
-                        <span><i class="fa-solid fa-list-check"></i> Fırsatlar Havuzu Kayıt Listesi</span>
-                        <button class="btn-success" onclick="excelDisariAktar()"><i class="fa-solid fa-file-arrow-down"></i> Mevcut Datayı Excel Olarak İndir</button>
-                    </h2>
-                    
-                    <div class="filtre-bar">
-                        <input type="text" id="arama-firma" placeholder="Kurum adına göre süz..." oninput="verileriTazele()">
-                        <select id="filtre-musteri" onchange="verileriTazele()"><option value="">Tüm Müşteriler</option></select>
-                        <select id="filtre-urun" onchange="verileriTazele()"><option value="">Tüm Ürünler</option></select>
-                        <select id="filtre-statu" onchange="verileriTazele()"><option value="">Tüm Statüler</option></select>
-                    </div>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Müşteri / Kurum</th>
-                                <th>Ürün / Çözüm</th>
-                                <th>Beklenen Gelir</th>
-                                <th>Olasılık</th>
-                                <th>Statü</th>
-                                <th>Kapanış Tarihi</th>
-                                <th>Aksiyon</th>
-                            </tr>
-                        </thead>
-                        <tbody id="firsat-tablo-vucut"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="alt-paneller">
-                <div class="alt-kesim-kutu">
-                    <h2><i class="fa-solid fa-table-cells"></i> Dinamik Özet Tablo (Ürün x Statü Matrisi)</h2>
-                    <table class="pivot-table">
-                        <thead>
-                            <tr>
-                                <th style="text-align: left; background-color: #1e3a8a;">Ürün / Çözüm</th>
-                                <th>Açık</th>
-                                <th>Teklif Verildi</th>
-                                <th>Kazanıldı</th>
-                                <th>Kaybedildi</th>
-                                <th>Ertelendi</th>
-                                <th style="background-color: #0f172a;">Genel Toplam</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pivot-tablo-vucut"></tbody>
-                    </table>
-                </div>
-
-                <div class="alt-kesim-kutu">
-                    <h2><i class="fa-solid fa-bullseye"></i> Excel Birebir Hedef Takip Matrisi</h2>
-                    <table class="hedef-tablo">
-                        <thead>
-                            <tr>
-                                <th>YILLIK HEDEF</th>
-                                <th>GERÇEKLEŞEN SATIŞ</th>
-                                <th>KALAN HEDEF TUTARI</th>
-                                <th>HEDEF BAŞARI ORANI</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="color: #1e40af;">5.000.000 TL</td>
-                                <td id="h-gerceklesen" style="color: #166534;">0 TL</td>
-                                <td id="h-kalan" style="color: #b45309;">0 TL</td>
-                                <td>
-                                    <div class="progress-container">
-                                        <span id="h-oran" style="color: #0f172a;">%0</span>
-                                        <div class="excel-progress-bar">
-                                            <div class="excel-progress-fill" id="h-progress"></div>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div id="yukleme-sayfa" class="sayfa">
-            <div class="yukleme-grid">
-                <div class="yukleme-kart">
-                    <h2><i class="fa-solid fa-building"></i> 1. Excel'den Toplu Müşteri Yükleme</h2>
-                    <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Excel'den kopyaladığınız şirket isimlerini (Her satıra bir tane gelecek şekilde) buraya yapıştırın:</p>
-                    <textarea id="excelMusteriMetin" class="excel-input" placeholder="Örn:\nBimser Çözüm\nHavelsan\nRoketsan"></textarea>
-                    <button type="button" class="btn-success" onclick="topluMusteriYukle()"><i class="fa-solid fa-upload"></i> Firmaları Sözlüğe Aktar</button>
-                </div>
-
-                <div class="yukleme-kart">
-                    <h2><i class="fa-solid fa-table"></i> 2. Excel'den Toplu Fırsat Havuzu Yükleme</h2>
-                    <p style="font-size:13px; color:#64748
+                            <div class
