@@ -2,13 +2,13 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# v5.0: Sözlük Tanımları, Tüm Fırsat Kayıtları ve Ürün-Statü Özet Matris Tablosu
+# v5.5: Tarayıcı Hafızasını Otomatik Temizleyen ve Excel Verilerini Zorla Yükleyen Sürüm
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Kurumsal Fırsat Takip Portalı v5.0</title>
+    <title>Kurumsal Fırsat Takip Portalı v5.5</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -35,7 +35,6 @@ HTML_TEMPLATE = """
         .form-section, .grafik-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .sag-tablo { background: white; flex: 1; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 540px; }
         
-        /* Alt Bölüm Pivot Özet Alanı */
         .alt-ozet-kesim { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-top: 20px; }
         
         h2 { font-size: 16px; margin-bottom: 15px; color: #1e3a8a; border-bottom: 2px solid #f3f4f6; padding-bottom: 5px; display: flex; align-items: center; gap: 8px; }
@@ -52,7 +51,6 @@ HTML_TEMPLATE = """
         th { background-color: #f8fafc; color: #475569; font-weight: 600; }
         tr:hover { background-color: #f8fafc; }
         
-        /* Özet Pivot Tabloya Özel Stil */
         .pivot-table th { background-color: #1e3a8a; color: white; text-align: center; }
         .pivot-table td { text-align: right; font-weight: 500; }
         .pivot-table td.pivot-baslik { text-align: left; font-weight: bold; background-color: #f8fafc; }
@@ -73,7 +71,7 @@ HTML_TEMPLATE = """
 <body>
 
     <header>
-        <h1><i class="fa-solid fa-chart-line"></i> Kurumsal Fırsat Takip Otomasyonu v5.0</h1>
+        <h1><i class="fa-solid fa-chart-line"></i> Kurumsal Fırsat Takip Otomasyonu v5.5</h1>
         <nav>
             <button onclick="sayfaDegistir('firsatlar-sayfa')" id="btn-firsatlar-sayfa" class="active"><i class="fa-solid fa-table-list"></i> Fırsat Havuzu & Özet Rapor</button>
             <button onclick="sayfaDegistir('ayarlar-sayfa')" id="btn-ayarlar-sayfa"><i class="fa-solid fa-sliders"></i> Excel Sözlük Tanımları</button>
@@ -180,11 +178,9 @@ HTML_TEMPLATE = """
                             <th style="background-color: #0f172a;">Genel Toplam</th>
                         </tr>
                     </thead>
-                    <tbody id="pivot-tablo-vucut">
-                        </tbody>
+                    <tbody id="pivot-tablo-vucut"></tbody>
                 </table>
             </div>
-
         </div>
 
         <div id="ayarlar-sayfa" class="sayfa">
@@ -220,7 +216,7 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
-        // EXCEL BİREBİR VERİ SETİ: Sözlük sekmesi ve Fırsatlar sekmesi tam listesi yükleniyor
+        // KESİN VERİ SETİ: Excel şablonunuzdan alınan eksiksiz Sözlük ve Fırsatlar verileri
         let excelUyumluTamVeri = {
             musteriler: [
                 {id: 1, ad: "Kocaeli Büyükşehir Belediyesi"},
@@ -258,17 +254,15 @@ HTML_TEMPLATE = """
             ]
         };
 
-        // Tarayıcı havuzunu Excel uyumlu ana data ile senkronize etme
-        if (!localStorage.getItem('firsat_takip_db_v5') || JSON.parse(localStorage.getItem('firsat_takip_db_v5')).firsatlar.length <= 5) {
-            localStorage.setItem('firsat_takip_db_v5', JSON.stringify(excelUyumluTamVeri));
-        }
+        // KRİTİK ADIM: Eski hafıza çakışmasını engellemek için tarayıcı hafızasını zorla güncelliyoruz
+        localStorage.setItem('firsat_takip_db_v5.5', JSON.stringify(excelUyumluTamVeri));
 
-        let db = JSON.parse(localStorage.getItem('firsat_takip_db_v5'));
+        let db = JSON.parse(localStorage.getItem('firsat_takip_db_v5.5'));
         document.getElementById('f-tarih').valueAsDate = new Date();
         let myChart = null;
 
         function dbKaydet() {
-            localStorage.setItem('firsat_takip_db_v5', JSON.stringify(db));
+            localStorage.setItem('firsat_takip_db_v5.5', JSON.stringify(db));
             verileriTazele();
         }
 
@@ -292,7 +286,6 @@ HTML_TEMPLATE = """
             return 'ertelendi';
         }
 
-        // TÜM SİSTEMİ, METRİKLERİ VE MATRİS RAPORUNU HESAPLAYAN MOTOR
         function verileriTazele() {
             setupDropdown('f-musteri', db.musteriler, 'Müşteri Seçin...', 'filtre-musteri', 'Tüm Müşteriler');
             setupDropdown('f-urun', db.urunler, 'Ürün Seçin...', 'filtre-urun', 'Tüm Ürünler');
@@ -309,7 +302,6 @@ HTML_TEMPLATE = """
             let grafikVerileri = {};
             db.statuler.forEach(s => grafikVerileri[s.ad] = 0);
 
-            // Pivot Özet Tablo Matris Yapısı Hazırlığı
             let pivotMatris = {};
             db.urunler.forEach(u => {
                 pivotMatris[u.id] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, toplam: 0 };
@@ -334,7 +326,6 @@ HTML_TEMPLATE = """
                 const gelir = parseFloat(f.beklenen_gelir) || 0;
                 const olasilik = parseFloat(f.olasilik) || 0;
 
-                // 1. Ana Raporlama Metrikleri (SUMPRODUCT mantığı)
                 if(statuAd === 'Kazanıldı') {
                     kazanilanToplam += gelir;
                 } else if(statuAd !== 'Kaybedildi') {
@@ -342,18 +333,15 @@ HTML_TEMPLATE = """
                     agirlikliTahmin += (gelir * (olasilik / 100));
                 }
 
-                // 2. Pasta Grafik Verisi
                 if(grafikVerileri[statuAd] !== undefined) {
                     grafikVerileri[statuAd] += gelir;
                 }
 
-                // 3. Özet Matris Verisi (Pivot Veri Akışı)
                 if(pivotMatris[f.urun_id] && pivotMatris[f.urun_id][f.statu_id] !== undefined) {
                     pivotMatris[f.urun_id][f.statu_id] += gelir;
                     pivotMatris[f.urun_id].toplam += gelir;
                 }
 
-                // Arama ve Filtreleme Süzgeci
                 if (aramaMetni && !musteriAd.toLowerCase().includes(aramaMetni)) return;
                 if (fMusteri && f.musteri_id != fMusteri) return;
                 if (fUrun && f.urun_id != fUrun) return;
@@ -380,33 +368,26 @@ HTML_TEMPLATE = """
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#999; padding:20px;">Aranan kriterlere uygun fırsat kaydı bulunamadı.</td></tr>';
             }
 
-            // Üst Paneli Güncelle
             document.getElementById('m-acik').innerText = paraFormat(acikToplam);
             document.getElementById('m-kazanilan').innerText = paraFormat(kazanilanToplam);
             document.getElementById('m-tahmin').innerText = paraFormat(agirlikliTahmin);
 
-            // Grafik ve Matris Raporunu Tetikle
             grafikGuncelle(grafikVerileri);
             pivotTabloInsaEt(pivotMatris);
         }
 
-        // EXCEL ÖZET MATRİS TABLOSUNU ANLIK OLUŞTURAN FONKSİYON
         function pivotTabloInsaEt(matris) {
             const pBody = document.getElementById('pivot-tablo-vucut');
             pBody.innerHTML = '';
-
             let sutunToplamlari = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, genel: 0 };
 
             db.urunler.forEach(u => {
                 const data = matris[u.id];
                 if(!data) return;
 
-                sutunToplamlari[1] += data[1];
-                sutunToplamlari[2] += data[2];
-                sutunToplamlari[3] += data[3];
-                sutunToplamlari[4] += data[4];
-                sutunToplamlari[5] += data[5];
-                sutunToplamlari.genel += data.toplam;
+                sutunToplamlari[1] += data[1]; sutunToplamlari[2] += data[2];
+                sutunToplamlari[3] += data[3]; sutunToplamlari[4] += data[4];
+                sutunToplamlari[5] += data[5]; sutunToplamlari.genel += data.toplam;
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -421,7 +402,6 @@ HTML_TEMPLATE = """
                 pBody.appendChild(tr);
             });
 
-            // En Alt Toplam Satırı (Excel Alttoplam satırı gibi)
             const trToplam = document.createElement('tr');
             trToplam.className = 'pivot-toplam';
             trToplam.innerHTML = `
@@ -439,17 +419,14 @@ HTML_TEMPLATE = """
         function setupDropdown(formId, liste, formVarsayilan, filtreId, filtreVarsayilan) {
             const formEl = document.getElementById(formId);
             const filtreEl = document.getElementById(filtreId);
-            
-            const eskiFormVal = formEl.value;
-            const eskiFiltreVal = filtreEl.value;
+            const eskiFormVal = formEl.value; const eskiFiltreVal = filtreEl.value;
 
             formEl.innerHTML = formVarsayilan ? `<option value="">${formVarsayilan}</option>` : '';
-            filtreEl.innerHTML = `<option value="">${filtreVarsavilan}</option>`;
+            filtreEl.innerHTML = `<option value="">${filtreVarsayilan}</option>`;
 
             liste.forEach(item => {
                 const opt = `<option value="${item.id}">${item.ad}</option>`;
-                formEl.innerHTML += opt;
-                filtreEl.innerHTML += opt;
+                formEl.innerHTML += opt; filtreEl.innerHTML += opt;
             });
 
             if(eskiFormVal) formEl.value = eskiFormVal;
@@ -457,94 +434,18 @@ HTML_TEMPLATE = """
         }
 
         function renderAyarlarListesi(id, liste, key) {
-            const ul = document.getElementById(id);
-            ul.innerHTML = '';
+            const ul = document.getElementById(id); ul.innerHTML = '';
             liste.forEach(item => {
-                ul.innerHTML += `<li>
-                    <span>${item.ad}</span>
-                    <button type="button" class="btn-delete" onclick="dinamikSil('${key}', ${item.id})"><i class="fa-solid fa-xmark"></i></button>
-                </li>`;
+                ul.innerHTML += `<li><span>${item.ad}</span><button type="button" class="btn-delete" onclick="dinamikSil('${key}', ${item.id})"><i class="fa-solid fa-xmark"></i></button></li>`;
             });
         }
 
         function grafikGuncelle(veriObj) {
             const ctx = document.getElementById('statuGrafik').getContext('2d');
-            const etiketler = Object.keys(veriObj);
-            const degerler = Object.values(veriObj);
+            const etiketler = Object.keys(veriObj); const degerler = Object.values(veriObj);
 
             if (myChart) {
-                myChart.data.labels = etiketler;
-                myChart.data.datasets[0].data = degerler;
-                myChart.update();
+                myChart.data.labels = etiketler; myChart.data.datasets[0].data = degerler; myChart.update();
             } else {
                 myChart = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: etiketler,
-                        datasets: [{
-                            data: degerler,
-                            backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#6b7280'],
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
-                        }
-                    }
-                });
-            }
-        }
-
-        function dinamikEkle(key, inputId) {
-            const input = document.getElementById(inputId);
-            const deger = input.value.trim();
-            if(!deger) return;
-
-            const yeniId = db[key].length > 0 ? Math.max(...db[key].map(o => o.id)) + 1 : 1;
-            db[key].push({id: yeniId, ad: deger});
-            input.value = '';
-            dbKaydet();
-        }
-
-        function dinamikSil(key, id) {
-            if(confirm('Bu tanımı silmek istediğinize emin misiniz?')) {
-                db[key] = db[key].filter(item => item.id != id);
-                dbKaydet();
-            }
-        }
-
-        document.getElementById('firsatForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const yeniFirsat = {
-                musteri_id: document.getElementById('f-musteri').value,
-                urun_id: document.getElementById('f-urun').value,
-                beklenen_gelir: document.getElementById('f-gelir').value,
-                olasilik: document.getElementById('f-olasilik').value,
-                statu_id: document.getElementById('f-statu').value,
-                tarih: document.getElementById('f-tarih').value
-            };
-            db.firsatlar.push(yeniFirsat);
-            document.getElementById('f-gelir').value = '0';
-            document.getElementById('f-olasilik').value = '50';
-            dbKaydet();
-        });
-
-        window.firsatSil = function(index) {
-            if(confirm('Bu satış kaydını havuzdan silmek istediğinize emin misiniz?')) {
-                db.firsatlar.splice(index, 1);
-                dbKaydet();
-            }
-        }
-
-        verileriTazele();
-    </script>
-</body>
-</html>
-"""
-
-@app.route('/')
-def ana_sayfa():
-    return render_template_string(HTML_TEMPLATE)
+                    type:
